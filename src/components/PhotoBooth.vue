@@ -21,7 +21,12 @@
 
       <!-- Viewfinder -->
       <div class="vf-wrap">
-        <div class="vf-box" :class="frameClass">
+        <div class="vf-box" :class="[frameClass, { 'retake-focus': retakeIndex !== null }]">
+          <!-- Retake Indicator -->
+          <div v-if="retakeIndex !== null" class="retake-indicator">
+            <RefreshCwIcon :size="14" />
+            <span>Retaking Pose #{{ retakeIndex + 1 }}</span>
+          </div>
           <template v-if="selectedFrame === 'floral'">
             <FlowerIcon class="fc fc-tl" :size="22" /><FlowerIcon class="fc fc-tr" :size="22" />
             <FlowerIcon class="fc fc-bl" :size="22" /><FlowerIcon class="fc fc-br" :size="22" />
@@ -60,6 +65,9 @@
             <p>Tap <strong>Open Camera</strong> to start</p>
           </div>
         </div>
+
+        <!-- Review Grid -->
+        <!-- (Removed from here, now in Modal) -->
 
         <!-- Snap dots -->
         <div class="prog-dots">
@@ -382,6 +390,51 @@
       </div>
     </transition>
   </teleport>
+
+  <!-- ══ REVIEW MODAL ══ -->
+  <teleport to="body">
+    <transition name="modal-fade">
+      <div v-if="reviewModalOpen" class="modal-backdrop review-backdrop" @click.self="closeReviewModal">
+        <div class="modal-card review-card">
+          <div class="modal-header">
+            <h2 class="modal-title">Review Your Session</h2>
+            <button class="modal-close" @click="closeReviewModal">
+              <XIcon :size="20" />
+            </button>
+          </div>
+
+          <p class="review-subtitle">Click any photo to retake it</p>
+
+          <div class="review-strip-wrap">
+            <div class="review-strip" :class="'strip-bg-' + selectedFrame" :style="stripBgStyle">
+              <div class="review-grid-v">
+                <div
+                  v-for="(snap, i) in snaps"
+                  :key="i"
+                  class="review-item-v"
+                  :class="'border-' + selectedFrame"
+                  @click="doRetakePose(i)"
+                >
+                  <img :src="snap" class="review-img-v" :class="filterClass" />
+                  <div class="review-item-overlay">
+                    <RefreshCwIcon :size="24" />
+                    <span>Retake #{{ i + 1 }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="ma-btn primary wide-btn" @click="doConfirmReview">
+              <CheckCircleIcon :size="18" />
+              <span>Confirm &amp; Develop Strip</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </teleport>
 </template>
 
 <script setup>
@@ -412,6 +465,7 @@ import {
   HandIcon,
   XIcon,
   UploadIcon,
+  CheckCircleIcon,
 } from 'lucide-vue-next'
 
 // ── A "SailboatIcon" polyfill (not in all lucide versions) ──
@@ -452,6 +506,8 @@ const stripReady = ref(false)
 const stripSliding = ref(false)
 const showPickup = ref(false)
 const appStep = ref(1)
+const reviewModalOpen = ref(false)
+const retakeIndex = ref(null)
 const timestamp = ref(
   new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
 )
@@ -689,6 +745,26 @@ const doUploadPhotos = async (e) => {
   deliverySectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' })
 }
 
+const openReviewModal = () => {
+  playClick()
+  reviewModalOpen.value = true
+  document.body.style.overflow = 'hidden'
+}
+
+const closeReviewModal = () => {
+  reviewModalOpen.value = false
+  document.body.style.overflow = ''
+}
+
+const doRetakePose = (idx) => {
+  playClick()
+  retakeIndex.value = idx
+  closeReviewModal()
+  // Scroll back to camera
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+
 // ── Capture ────────────────────────────────────────────────
 const flashEffect = () => {
   showFlash.value = true
@@ -739,6 +815,43 @@ const runCountdown = () =>
 // ── MAIN CAPTURE FLOW ──────────────────────────────────────
 const doCapture = async () => {
   playClick()
+  
+  if (retakeIndex.value !== null) {
+    // SINGLE SHOT RETAKE MODE
+    capturing.value = true
+    await runCountdown()
+    
+    const v = video.value
+    if (v?.videoWidth) {
+      const c = document.createElement('canvas')
+      c.width = v.videoWidth
+      c.height = v.videoHeight
+      const ctx = c.getContext('2d')
+      const fmap = {
+        none: '',
+        bw: 'grayscale(100%)',
+        sepia: 'sepia(100%)',
+        faded: 'contrast(80%) brightness(1.1) saturate(60%)',
+        cartoon: 'contrast(165%) saturate(195%)',
+        warm: 'sepia(38%) saturate(145%) brightness(1.05)',
+      }
+      ctx.filter = fmap[selectedFilter.value] || ''
+      ctx.translate(c.width, 0)
+      ctx.scale(-1, 1)
+      ctx.drawImage(v, 0, 0)
+      
+      snaps.value[retakeIndex.value] = c.toDataURL('image/jpeg', 0.92)
+      flashEffect()
+      playShutter()
+    }
+    
+    capturing.value = false
+    retakeIndex.value = null
+    openReviewModal()
+    return
+  }
+
+  // NORMAL FULL SESSION MODE
   capturing.value = true
   snaps.value = []
   stripReady.value = false
@@ -756,9 +869,14 @@ const doCapture = async () => {
   }
   capturing.value = false
   appStep.value = 4
+  openReviewModal()
+}
 
-  // Scroll to delivery, start developing timer
-  await nextTick()
+const doConfirmReview = async () => {
+  playClick()
+  closeReviewModal()
+  
+  // Trigger delivery flow
   developing.value = true
   await nextTick()
   deliverySectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -798,6 +916,9 @@ const doRetake = () => {
   stripReady.value = false
   stripSliding.value = false
   showPickup.value = false
+  reviewModalOpen.value = false
+  retakeIndex.value = null
+
   developing.value = false
   devProgress.value = 0
   devCountdown.value = 5
@@ -1442,6 +1563,114 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.72);
 }
 
+/* Review Area */
+.review-area {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 248, 240, 0.98);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  gap: 15px;
+  overflow-y: auto;
+}
+.review-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.4rem;
+  color: #8b4513;
+  margin-bottom: 5px;
+}
+.review-grid {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  max-width: 440px;
+}
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(2, 1fr); }
+.grid-6 { grid-template-columns: repeat(3, 1fr); }
+
+.review-item {
+  position: relative;
+  aspect-ratio: 4/3;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.15);
+  border: 2px solid #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.review-item:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(139, 69, 19, 0.25);
+  border-color: #c2825a;
+}
+.review-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter 0.3s;
+}
+.review-item:hover .review-img {
+  filter: brightness(0.7) blur(1px);
+}
+.review-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(139, 69, 19, 0.4);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.review-overlay span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.review-item:hover .review-overlay {
+  opacity: 1;
+}
+@keyframes rot-once {
+  to { transform: rotate(360deg); }
+}
+.review-item:hover .review-overlay svg {
+  animation: rot-once 0.6s ease-in-out;
+}
+
+.confirm-btn {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border-radius: 99px;
+  border: none;
+  background: linear-gradient(135deg, #5a9e52, #3d7a36);
+  color: #fff;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(90, 158, 82, 0.3);
+  transition: all 0.2s;
+}
+.confirm-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(90, 158, 82, 0.4);
+}
+.confirm-btn:active {
+  transform: scale(0.95);
+}
+
+
 /* Prog dots */
 .prog-dots {
   display: flex;
@@ -1606,6 +1835,115 @@ onBeforeUnmount(() => {
   50% {
     box-shadow: 0 0 0 12px rgba(194, 130, 90, 0);
   }
+}
+
+.retake-focus {
+  border: 4px solid #c2825a !important;
+  box-shadow: 0 0 0 6px rgba(194, 130, 90, 0.25);
+}
+
+.retake-indicator {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  background: #c2825a;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 99px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.review-card {
+  max-width: 440px;
+  padding: 24px 24px 30px;
+}
+.review-subtitle {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #a07060;
+  font-style: italic;
+  margin: -5px 0 15px;
+}
+.review-strip-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 15px 0;
+  max-height: 55vh;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.03);
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+.review-strip {
+  width: 200px;
+  padding: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  border-radius: 4px;
+}
+.review-grid-v {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.review-item-v {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.review-item-v:hover {
+  transform: scale(1.05) rotate(1deg);
+  z-index: 5;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+.review-img-v {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  display: block;
+}
+.review-item-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(139, 69, 19, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.25s;
+  backdrop-filter: blur(2px);
+}
+.review-item-v:hover .review-item-overlay {
+  opacity: 1;
+}
+.review-item-overlay span {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.wide-btn {
+  width: 100%;
+  padding: 16px !important;
+  font-size: 0.9rem !important;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #5a9e52 0%, #3d7a36 100%) !important;
+  box-shadow: 0 6px 20px rgba(90, 158, 82, 0.3) !important;
+}
+.wide-btn:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 10px 25px rgba(90, 158, 82, 0.45) !important;
 }
 .sh-body {
   position: absolute;
