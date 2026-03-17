@@ -1,117 +1,208 @@
 <template>
-    <div class="bg-white text-gray-900 min-h-screen mt-16">
-      <div class="max-w-6xl mx-auto p-6 space-y-8">
-        <h1 class="text-4xl font-semibold text-center text-blue-600">About Snapify</h1>
-        
-        <div class="flex flex-col md:flex-row gap-8">
-          <div class="flex-1">
-            <h2 class="text-2xl font-semibold text-blue-600">What is Snapify?</h2>
-            <p class="text-gray-700 mt-4">
-              Snapify is a fun and cozy photobooth-style app that lets you capture moments with customizable photo strips. Whether you want to take a few snaps with friends or add some quirky filters, Snapify gives you all the tools to make your memories unforgettable.
-            </p>
-  
-            <p class="text-gray-700 mt-4">
-              Choose from multiple photo layouts, apply unique filters, and download or share your photo strips with ease! It's designed to be simple, intuitive, and fun for everyone.
-            </p>
-          </div>
-  
-          <div class="flex-1">
-            <h2 class="text-2xl font-semibold text-blue-600">Features</h2>
-            <ul class="list-disc list-inside text-gray-700 mt-4">
-              <li>Capture multiple photos with customizable layouts (2, 3, 4, or 6 photos).</li>
-              <li>Apply creative filters like grayscale, sepia, or high contrast.</li>
-              <li>Preview your photo strip and customize it before saving or sharing.</li>
-              <li>Share your strips directly to Facebook, Instagram, or download them.</li>
-              <li>Enjoy a cozy, user-friendly design with responsive features across all devices.</li>
-            </ul>
-          </div>
-        </div>
-  
-        <div class="mt-12">
-          <h2 class="text-2xl font-semibold text-blue-600">Get in Touch</h2>
-          <p class="text-gray-700 mt-4">
-            Have any questions, suggestions, or feedback? Feel free to reach out to us!
+  <div class="about-page">
+    <div class="content-card">
+      <div class="card-header">
+        <SparklesIcon class="header-icon" :size="32" />
+        <h1 class="title">About Snapify</h1>
+        <p class="subtitle">Capturing cozy moments, one strip at a time.</p>
+      </div>
+
+      <div class="card-body">
+        <section class="info-section">
+          <h2 class="section-title">What is Snapify?</h2>
+          <p class="text">
+            Snapify is your personal, vintage-inspired photobooth designed to bring back the charm
+            of film strips. We believe that memories are best preserved in simple, beautiful layouts
+            that feel warm and personal.
           </p>
-          <p class="text-gray-700 mt-4">
-            Email us at: <span class="font-semibold text-blue-600">support@snapify.com</span>
+          <p class="text">
+            Whether you're using our mobile-friendly camera or uploading your own favorite photos,
+            Snapify makes it effortless to create aesthetic photo strips with just a few clicks.
           </p>
-        </div>
+        </section>
+
+        <section class="info-section">
+          <h2 class="section-title">Key Features</h2>
+          <div class="features-grid">
+            <div class="feature-item">
+              <CameraIcon class="feature-icon" :size="20" />
+              <span>Multiple Layouts (2-6 photos)</span>
+            </div>
+            <div class="feature-item">
+              <SlidersHorizontalIcon class="feature-icon" :size="20" />
+              <span>Vintage & Artistic Filters</span>
+            </div>
+            <div class="feature-item">
+              <FrameIcon class="feature-icon" :size="20" />
+              <span>Custom Frame Backgrounds</span>
+            </div>
+            <div class="feature-item">
+              <PrinterIcon class="feature-icon" :size="20" />
+              <span>HQ Downloads & Prints</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="info-section">
+          <h2 class="section-title">The "Nakama" Spirit</h2>
+          <p class="text">
+            For those who seek adventure, don't miss our exclusive <strong>One Piece</strong> theme!
+            Join the crew and customize your strips with pirate-inspired badges and gold accents.
+          </p>
+        </section>
+
+        <footer class="card-footer">
+          <p class="contact-label">Want to say hi?</p>
+          <a href="mailto:support@snapify.com" class="contact-link">
+            <MailIcon :size="16" />
+            <span>support@snapify.com</span>
+          </a>
+        </footer>
       </div>
     </div>
-  </template>
-  
-  <script setup>
-  // Script can remain empty if you don't need any dynamic content
-  </script>
-  
-  <style scoped>
-  /* Tailwind styles for responsive layout and typography */
-  .bg-white {
-    background-color: #ffffff;
+  </div>
+</template>
+
+<script setup>
+import {
+  SparklesIcon,
+  CameraIcon,
+  SlidersHorizontalIcon,
+  FrameIcon,
+  PrinterIcon,
+  MailIcon,
+} from 'lucide-vue-next'
+</script>
+
+<style scoped>
+.about-page {
+  min-height: 100vh;
+  background-color: #fdf6f0;
+  background-image: radial-gradient(#d9c5b2 0.5px, transparent 0.5px);
+  background-size: 20px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px 100px;
+  font-family: 'Inter', sans-serif;
+}
+
+.content-card {
+  background: white;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(194, 130, 90, 0.15);
+  overflow: hidden;
+}
+
+.card-header {
+  background: linear-gradient(135deg, #fffcf9 0%, #f7e9dd 100%);
+  padding: 40px 30px;
+  text-align: center;
+  border-bottom: 1px solid rgba(194, 130, 90, 0.1);
+}
+
+.header-icon {
+  color: #c2825a;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2.5rem;
+  color: #6b2e0e;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #a07060;
+  font-style: italic;
+  font-family: 'Playfair Display', serif;
+}
+
+.card-body {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.5rem;
+  color: #8b4513;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.text {
+  color: #5a4030;
+  line-height: 1.6;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fffcf9;
+  border: 1px solid rgba(194, 130, 90, 0.1);
+  border-radius: 12px;
+  color: #7a4020;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.feature-icon {
+  color: #c2825a;
+}
+
+.card-footer {
+  margin-top: 10px;
+  padding-top: 25px;
+  border-top: 1px dashed rgba(194, 130, 90, 0.2);
+  text-align: center;
+}
+
+.contact-label {
+  font-size: 0.85rem;
+  color: #a07060;
+  margin-bottom: 8px;
+}
+
+.contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #c2825a;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.contact-link:hover {
+  color: #8b4513;
+}
+
+@media (max-width: 640px) {
+  .title {
+    font-size: 2rem;
   }
-  .text-gray-900 {
-    color: #1a202c;
-  }
-  .text-blue-600 {
-    color: #3b82f6;
-  }
-  .text-gray-700 {
-    color: #4a5568;
-  }
-  
-  .max-w-6xl {
-    max-width: 72rem;
-  }
-  .min-h-screen {
-    min-height: 100vh;
-  }
-  
-  .p-6 {
-    padding: 1.5rem;
-  }
-  
-  .space-y-8 {
-    margin-bottom: 2rem;
-  }
-  
-  .text-center {
-    text-align: center;
-  }
-  
-  .text-4xl {
-    font-size: 2.25rem;
-  }
-  
-  .text-2xl {
-    font-size: 1.5rem;
-  }
-  
-  .font-semibold {
-    font-weight: 600;
-  }
-  
-  .md\:flex-row {
-    flex-direction: row;
-  }
-  
-  .flex-1 {
-    flex: 1;
-  }
-  
-  .list-disc {
-    list-style-type: disc;
-  }
-  
-  .list-inside {
-    list-style-position: inside;
-  }
-  
-  .mt-4 {
-    margin-top: 1rem;
-  }
-  
-  .mt-12 {
-    margin-top: 3rem;
-  }
-  </style>
-  
+}
+</style>

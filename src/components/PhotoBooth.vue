@@ -107,13 +107,23 @@
 
       <!-- Action bar -->
       <div class="action-bar">
+        <!-- Hidden file input for photo upload -->
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/*"
+          multiple
+          style="display: none"
+          @change="doUploadPhotos"
+          id="upload-input"
+        />
         <button class="act-btn" @click="doStartCamera" :disabled="cameraActive" id="open-cam-btn">
           <VideoIcon :size="18" /><span>Camera</span>
         </button>
         <button
           class="shutter-btn"
           @click="doCapture"
-          :disabled="capturing || !cameraActive"
+          :disabled="capturing || (!cameraActive && !snaps.length)"
           id="shutter-btn"
         >
           <span class="sh-ring"></span>
@@ -129,6 +139,15 @@
           id="retake-btn"
         >
           <RotateCcwIcon :size="18" /><span>Retake</span>
+        </button>
+      </div>
+
+      <!-- Upload alternative -->
+      <div class="upload-row">
+        <span class="upload-or">or</span>
+        <button class="upload-btn" @click="fileInput.click()" :disabled="capturing" id="upload-btn">
+          <UploadIcon :size="15" />
+          <span>Upload Photos ({{ selectedLayout }})</span>
         </button>
       </div>
     </div>
@@ -392,6 +411,7 @@ import {
   SwordIcon,
   HandIcon,
   XIcon,
+  UploadIcon,
 } from 'lucide-vue-next'
 
 // ── A "SailboatIcon" polyfill (not in all lucide versions) ──
@@ -418,6 +438,7 @@ const closeModal = () => {
 const video = ref(null)
 const photoStripRef = ref(null)
 const deliverySectionRef = ref(null)
+const fileInput = ref(null) // hidden file input for uploads
 const snaps = ref([])
 const stream = ref(null)
 const countdown = ref(0)
@@ -550,7 +571,12 @@ const doStartCamera = async () => {
   playClick()
   try {
     stream.value = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      video: {
+        facingMode: 'user',
+        width: { ideal: 1280 },
+        height: { ideal: 960 },
+        aspectRatio: { ideal: 4 / 3 },
+      },
       audio: false,
     })
     video.value.srcObject = stream.value
@@ -559,6 +585,108 @@ const doStartCamera = async () => {
   } catch (e) {
     alert('Camera access denied:\n' + e.message)
   }
+}
+
+// ── Upload photos (alternative to camera) ──────────────────
+const doUploadPhotos = async (e) => {
+  const files = Array.from(e.target.files || []).slice(0, Number(selectedLayout.value))
+  if (!files.length) return
+  playClick()
+
+  const fmap = {
+    none: '',
+    bw: 'grayscale(100%)',
+    sepia: 'sepia(100%)',
+    faded: 'contrast(80%) brightness(1.1) saturate(60%)',
+    cartoon: 'contrast(165%) saturate(195%)',
+    warm: 'sepia(38%) saturate(145%) brightness(1.05)',
+  }
+  const filterStr = fmap[selectedFilter.value] || ''
+
+  // Read each file → draw onto 4:3 canvas with filter
+  const results = []
+  for (const file of files) {
+    await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const img = new Image()
+        img.onload = () => {
+          const W = 1280,
+            H = 960
+          const c = document.createElement('canvas')
+          c.width = W
+          c.height = H
+          const ctx = c.getContext('2d')
+          if (filterStr) ctx.filter = filterStr
+          // Cover-fit: centre-crop to 4:3
+          const srcRatio = img.naturalWidth / img.naturalHeight
+          const dstRatio = W / H
+          let sw, sh, sx, sy
+          if (srcRatio > dstRatio) {
+            sh = img.naturalHeight
+            sw = sh * dstRatio
+            sx = (img.naturalWidth - sw) / 2
+            sy = 0
+          } else {
+            sw = img.naturalWidth
+            sh = sw / dstRatio
+            sx = 0
+            sy = (img.naturalHeight - sh) / 2
+          }
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H)
+          results.push(c.toDataURL('image/jpeg', 0.92))
+          resolve()
+        }
+        img.src = ev.target.result
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // Reset file input so same files can be re-selected
+  if (fileInput.value) fileInput.value.value = ''
+
+  // Pad with last image if fewer files than layout
+  while (results.length < Number(selectedLayout.value)) results.push(results[results.length - 1])
+
+  snaps.value = results
+  appStep.value = 4
+
+  // Trigger delivery flow
+  stripReady.value = false
+  stripSliding.value = false
+  showPickup.value = false
+  developing.value = false
+  devProgress.value = 0
+  devCountdown.value = 5
+
+  await nextTick()
+  developing.value = true
+  await nextTick()
+  deliverySectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+
+  const DEVELOP_MS = 5000
+  const t0 = Date.now()
+  await new Promise((resolve) => {
+    const tick = () => {
+      const el = Date.now() - t0
+      devProgress.value = Math.min((el / DEVELOP_MS) * 100, 100)
+      devCountdown.value = Math.max(0, Math.ceil((DEVELOP_MS - el) / 1000))
+      if (el < DEVELOP_MS) requestAnimationFrame(tick)
+      else resolve()
+    }
+    requestAnimationFrame(tick)
+  })
+  developing.value = false
+
+  stripReady.value = true
+  await nextTick()
+  await new Promise((r) => setTimeout(r, 200))
+  stripSliding.value = true
+  await new Promise((r) => setTimeout(r, 4200))
+  showPickup.value = true
+  await nextTick()
+  deliverySectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' })
 }
 
 // ── Capture ────────────────────────────────────────────────
@@ -574,6 +702,7 @@ const captureSnap = () => {
   c.width = v.videoWidth
   c.height = v.videoHeight
   const ctx = c.getContext('2d')
+
   const fmap = {
     none: '',
     bw: 'grayscale(100%)',
@@ -583,6 +712,12 @@ const captureSnap = () => {
     warm: 'sepia(38%) saturate(145%) brightness(1.05)',
   }
   ctx.filter = fmap[selectedFilter.value] || ''
+
+  // The video preview is CSS-mirrored (scaleX(-1)) for a natural selfie feel.
+  // Flip the canvas horizontally so the saved image is NOT mirrored.
+  ctx.translate(c.width, 0)
+  ctx.scale(-1, 1)
+
   ctx.drawImage(v, 0, 0)
   snaps.value.push(c.toDataURL('image/jpeg', 0.92))
   flashEffect()
@@ -1162,6 +1297,8 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
   display: block;
+  /* Mirror the front camera so it feels like a natural selfie */
+  transform: scaleX(-1);
 }
 
 /* CSS filters - GPU only, no reflow */
@@ -2334,5 +2471,47 @@ onBeforeUnmount(() => {
 }
 .ma-btn.danger:hover {
   background: rgba(160, 50, 50, 0.08);
+}
+
+/* ── Upload alternative ── */
+.upload-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.upload-or {
+  font-size: 0.7rem;
+  color: #b0907a;
+  font-family: 'Inter', sans-serif;
+  font-style: italic;
+}
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border-radius: 99px;
+  border: 1.5px dashed rgba(194, 130, 90, 0.5);
+  background: rgba(255, 255, 255, 0.65);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #8b4513;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'Inter', sans-serif;
+}
+.upload-btn:hover {
+  background: rgba(194, 130, 90, 0.1);
+  border-color: #c2825a;
+  transform: translateY(-1px);
+}
+.upload-btn:active {
+  transform: scale(0.96);
+}
+.upload-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 </style>
