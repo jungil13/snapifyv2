@@ -162,9 +162,160 @@
 
     <!-- ══ RIGHT COL: Styles + Strip ══ -->
     <div class="col-styles">
-      <!-- Filters -->
-      <div class="style-section">
-        <h3 class="section-title"><SlidersHorizontalIcon :size="12" />Filter</h3>
+      <!-- ══ DYNAMIC INTERACTIVE STRIP PREVIEW ══ -->
+      <div class="style-section preview-section">
+        <h3 class="section-title"><SparklesIcon :size="12" />Interactive Strip Preview</h3>
+        <div class="interactive-preview-wrapper">
+          <div 
+            class="interactive-strip-card" 
+            :class="'strip-bg-' + selectedFrame"
+            :style="stripBgStyle"
+            ref="previewCardRef"
+          >
+            <!-- Frame header (One Piece banner etc) -->
+            <div v-if="selectedFrame === 'onepiece'" class="op-header">
+              <AnchorIcon :size="14" />
+              <span>ONE PIECE</span>
+              <AnchorIcon :size="14" />
+            </div>
+            <!-- CWSI header -->
+            <div v-if="selectedFrame === 'cwsi'" class="cwsi-header">
+              <img src="/logo.png" class="cwsi-logo" alt="CWSI Logo" />
+              <div class="cwsi-title">CORDOVA WATER SYSTEM INC.</div>
+              <div class="cwsi-wave-bar"><span v-for="n in 3" :key="n"></span></div>
+            </div>
+            <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr">
+              <span v-for="n in 5" :key="n" class="vspr"></span>
+            </div>
+
+            <!-- Photos / Cozy Placeholders -->
+            <div class="photos-area">
+              <template v-if="snaps.length > 0">
+                <div
+                  v-for="(snap, i) in snaps"
+                  :key="i"
+                  class="strip-photo-wrap"
+                  :class="'border-' + selectedFrame"
+                >
+                  <img :src="snap" class="strip-photo" :class="filterClass" />
+                  <div v-if="selectedFrame === 'onepiece'" class="op-photo-badge">
+                    {{ opLabels[i % opLabels.length] }}
+                  </div>
+                  <template v-if="selectedFrame === 'floral'">
+                    <FlowerIcon class="sc sc-tl" :size="10" />
+                    <FlowerIcon class="sc sc-tr" :size="10" />
+                  </template>
+                </div>
+              </template>
+              <template v-else>
+                <!-- Cozy Placeholders when no snaps yet -->
+                <div
+                  v-for="n in Number(selectedLayout)"
+                  :key="n"
+                  class="strip-photo-wrap placeholder-photo"
+                  :class="'border-' + selectedFrame"
+                >
+                  <div class="placeholder-content">
+                    <CameraIcon :size="14" />
+                    <span>Pose {{ n }}</span>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Strip footer / watermark -->
+            <div class="strip-footer" :class="'footer-' + selectedFrame">
+              <div v-if="selectedFrame === 'onepiece'" class="op-footer">
+                <ZapIcon :size="10" />
+                <span>Snapify · {{ timestamp }}</span>
+                <SwordIcon :size="10" />
+              </div>
+              <div v-else-if="selectedFrame === 'cwsi'" class="cwsi-footer">
+                <img src="/logo.png" class="cwsi-footer-logo" alt="CWSI" />
+                <span>CORDOVA WATER SYSTEM INC.</span>
+              </div>
+              <div class="default-footer" v-else>Snapify · {{ timestamp }}</div>
+            </div>
+
+            <!-- Bottom sprockets for vintage -->
+            <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr-bot">
+              <span v-for="n in 5" :key="n" class="vspr"></span>
+            </div>
+
+            <!-- Active Stickers Overlay Layer -->
+            <div class="stickers-overlay-container">
+              <div 
+                v-for="(sticker, index) in activeStickers" 
+                :key="sticker.id"
+                class="draggable-sticker"
+                :class="{ 'is-selected': selectedStickerIndex === index }"
+                :style="{
+                  left: `${sticker.x * 100}%`,
+                  top: `${sticker.y * 100}%`,
+                  transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg) scale(${sticker.scale})`,
+                  zIndex: selectedStickerIndex === index ? 100 : index + 10
+                }"
+                @mousedown.prevent="startDrag($event, index)"
+                @touchstart.prevent="startDrag($event, index)"
+              >
+                <div class="sticker-content">
+                  <template v-if="sticker.type === 'image'">
+                    <img :src="sticker.src" @error="sticker.isError = true" v-if="!sticker.isError" />
+                    <div v-else class="fallback-sticker-fan" :class="sticker.id">
+                      <div class="fan-head">
+                        <span v-if="sticker.id.includes('logo_fan1')">CWSI</span>
+                        <span v-else>I ❤️ CWSI</span>
+                      </div>
+                      <div class="fan-stick"></div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <span class="emoji-sticker">{{ sticker.src }}</span>
+                  </template>
+                  
+                  <!-- Selected outline and action buttons -->
+                  <div class="sticker-outline" v-if="selectedStickerIndex === index">
+                    <button class="action-btn delete-btn" @click.stop="removeSticker(index)">×</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <p class="preview-hint-text">💡 Tap or drag stickers to position them on your strip</p>
+      </div>
+
+      <!-- ══ IOS SEGMENTED CONTROL TABS ══ -->
+      <div class="ios-segmented-control">
+        <button 
+          class="segment-btn" 
+          :class="{ active: activeTab === 'filter' }" 
+          @click="activeTab = 'filter'"
+        >
+          <SlidersHorizontalIcon :size="13" />
+          <span>Filters</span>
+        </button>
+        <button 
+          class="segment-btn" 
+          :class="{ active: activeTab === 'frame' }" 
+          @click="activeTab = 'frame'"
+        >
+          <FrameIcon :size="13" />
+          <span>Frames</span>
+        </button>
+        <button 
+          class="segment-btn" 
+          :class="{ active: activeTab === 'stickers' }" 
+          @click="activeTab = 'stickers'"
+        >
+          <SmileIcon :size="13" />
+          <span>Stickers</span>
+        </button>
+      </div>
+
+      <!-- ══ TAB 1: FILTERS ══ -->
+      <div v-if="activeTab === 'filter'" class="style-section">
         <div class="style-scroll">
           <button
             v-for="f in filters"
@@ -179,9 +330,8 @@
         </div>
       </div>
 
-      <!-- Frames -->
-      <div class="style-section">
-        <h3 class="section-title"><FrameIcon :size="12" />Frame &amp; Background</h3>
+      <!-- ══ TAB 2: FRAMES ══ -->
+      <div v-if="activeTab === 'frame'" class="style-section">
         <div class="style-scroll">
           <button
             v-for="fr in frames"
@@ -195,6 +345,69 @@
             </div>
             <span class="ft-name">{{ fr.label }}</span>
           </button>
+        </div>
+      </div>
+
+      <!-- ══ TAB 3: STICKERS ══ -->
+      <div v-if="activeTab === 'stickers'" class="style-section sticker-customizer-section">
+        <div class="stickers-grid">
+          <button 
+            v-for="st in availableStickers" 
+            :key="st.id" 
+            class="sticker-picker-btn"
+            @click="addSticker(st)"
+          >
+            <div class="sticker-btn-preview">
+              <span v-if="st.type === 'emoji'" class="emoji-preview">{{ st.src }}</span>
+              <img v-else-if="st.id === 'logo_fan1'" src="/logo_fan1.png" alt="CWSI Logo Fan" @error="(e) => e.target.src = '/logo.png'" />
+              <img v-else-if="st.id === 'logo_fan2'" src="/logo_fan2.png" alt="I ❤️ CWSI" @error="(e) => e.target.src = '/logo.png'" />
+            </div>
+            <span class="sticker-picker-label">{{ st.label }}</span>
+          </button>
+          
+          <!-- Upload Custom Sticker Button -->
+          <label class="sticker-picker-btn upload-custom-sticker-label">
+            <input type="file" accept="image/*" style="display: none" @change="handleCustomStickerUpload" />
+            <div class="sticker-btn-preview upload-btn-preview">
+              <UploadIcon :size="16" />
+            </div>
+            <span class="sticker-picker-label">Upload</span>
+          </label>
+        </div>
+
+        <!-- Selected Sticker Controls -->
+        <div v-if="selectedStickerIndex !== null && activeStickers[selectedStickerIndex]" class="selected-sticker-controls">
+          <h4 class="controls-title">Adjust Sticker</h4>
+          
+          <div class="control-row">
+            <label>Scale</label>
+            <input 
+              type="range" 
+              min="0.3" 
+              max="2.5" 
+              step="0.05" 
+              v-model.number="activeStickers[selectedStickerIndex].scale"
+            />
+            <span class="control-val">{{ activeStickers[selectedStickerIndex].scale.toFixed(1) }}x</span>
+          </div>
+          
+          <div class="control-row">
+            <label>Rotate</label>
+            <input 
+              type="range" 
+              min="0" 
+              max="360" 
+              step="5" 
+              v-model.number="activeStickers[selectedStickerIndex].rotation"
+            />
+            <span class="control-val">{{ activeStickers[selectedStickerIndex].rotation }}°</span>
+          </div>
+
+          <div class="control-actions-row">
+            <button class="control-action-btn" @click="bringToFront">Bring to Front</button>
+            <button class="control-action-btn" @click="sendToBack">Send to Back</button>
+            <button class="control-action-btn danger" @click="removeSticker(selectedStickerIndex)">Remove</button>
+          </div>
         </div>
       </div>
 
@@ -249,6 +462,12 @@
                         <span>ONE PIECE</span>
                         <AnchorIcon :size="14" />
                       </div>
+                      <!-- CWSI header -->
+                      <div v-if="selectedFrame === 'cwsi'" class="cwsi-header">
+                        <img src="/logo.png" class="cwsi-logo" alt="CWSI Logo" />
+                        <div class="cwsi-title">CORDOVA WATER SYSTEM INC.</div>
+                        <div class="cwsi-wave-bar"><span v-for="n in 3" :key="n"></span></div>
+                      </div>
                       <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr">
                         <span v-for="n in 5" :key="n" class="vspr"></span>
                       </div>
@@ -280,6 +499,10 @@
                           <ZapIcon :size="10" />
                           <span>Snapify · {{ timestamp }}</span>
                           <SwordIcon :size="10" />
+                        </div>
+                        <div v-else-if="selectedFrame === 'cwsi'" class="cwsi-footer">
+                          <img src="/logo.png" class="cwsi-footer-logo" alt="CWSI" />
+                          <span>CORDOVA WATER SYSTEM INC.</span>
                         </div>
                         <div v-else class="default-footer">Snapify · {{ timestamp }}</div>
                       </div>
@@ -323,12 +546,20 @@
             </button>
           </div>
 
-          <!-- Strip preview (large) -->
+          <div class="strip-preview-container" style="margin-top:12px; text-align:center;">
+        <img id="strip-preview-img" alt="Strip preview" style="max-width:100%; border:1px solid #ccc; border-radius:6px;" />
+      </div>
           <div class="modal-strip-wrap">
             <div class="modal-strip" :class="'strip-bg-' + selectedFrame" :style="stripBgStyle">
               <!-- One Piece header -->
               <div v-if="selectedFrame === 'onepiece'" class="op-header op-header-lg">
                 <AnchorIcon :size="16" /><span>ONE PIECE</span><AnchorIcon :size="16" />
+              </div>
+              <!-- CWSI header -->
+              <div v-if="selectedFrame === 'cwsi'" class="cwsi-header cwsi-header-lg">
+                <img src="/logo.png" class="cwsi-logo-lg" alt="CWSI Logo" />
+                <div class="cwsi-title-lg">CORDOVA WATER SYSTEM INC.</div>
+                <div class="cwsi-wave-bar"><span v-for="n in 3" :key="n"></span></div>
               </div>
               <!-- Vintage sprockets top -->
               <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr">
@@ -365,6 +596,10 @@
                 <div v-if="selectedFrame === 'onepiece'" class="op-footer">
                   <ZapIcon :size="11" /><span>Snapify · {{ timestamp }}</span
                   ><SwordIcon :size="11" />
+                </div>
+                <div v-else-if="selectedFrame === 'cwsi'" class="cwsi-footer cwsi-footer-lg">
+                  <img src="/logo.png" class="cwsi-footer-logo" alt="CWSI" />
+                  <span>CORDOVA WATER SYSTEM INC.</span>
                 </div>
                 <div v-else class="default-footer">Snapify · {{ timestamp }}</div>
               </div>
@@ -438,7 +673,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onBeforeUnmount, nextTick, watch } from 'vue'
 // html2canvas removed — strip is generated via pure Canvas 2D API
 import {
   CheckIcon,
@@ -466,6 +701,8 @@ import {
   XIcon,
   UploadIcon,
   CheckCircleIcon,
+  SmileIcon,
+  SparklesIcon,
 } from 'lucide-vue-next'
 
 // ── A "SailboatIcon" polyfill (not in all lucide versions) ──
@@ -541,6 +778,7 @@ const filters = [
 // ── Frames — each has id, label, bg (strip background), border color ──
 const frames = [
   { id: 'classic', label: 'Classic', bg: '#ffffff', border: '#e8e0d8' },
+  { id: 'cwsi', label: 'CWSI', bg: '#ffffff', border: '#000000' },
   { id: 'vintage', label: 'Film', bg: '#1a1210', border: '#554030' },
   { id: 'floral', label: 'Floral', bg: '#fde8f2', border: '#f4b8cc' },
   { id: 'pastel', label: 'Pastel', bg: '#e8f4fc', border: '#bcd8ef' },
@@ -600,6 +838,136 @@ const playShutter = () => {
   } catch (_) {
     playTone(180, 0.2, 0.15)
   }
+}
+
+// ── Stickers State & Customization ──────────────────────────
+const activeTab = ref('filter')
+const activeStickers = ref([])
+const selectedStickerIndex = ref(null)
+const draggingIndex = ref(null)
+
+let startX = 0
+let startY = 0
+let startStickerX = 0
+let startStickerY = 0
+
+const previewCardRef = ref(null)
+
+const availableStickers = [
+  { id: 'logo_fan1', label: 'CWSI Logo Fan', type: 'image', src: '/logo_fan1.png' },
+  { id: 'logo_fan2', label: 'I ❤️ CWSI Fan', type: 'image', src: '/logo_fan2.png' },
+  { id: 'drop', label: '💧 Water Drop', type: 'emoji', src: '💧' },
+  { id: 'sparkles', label: '✨ Sparkles', type: 'emoji', src: '✨' },
+  { id: 'heart', label: '❤️ Heart', type: 'emoji', src: '❤️' },
+  { id: 'star', label: '🌟 Star', type: 'emoji', src: '🌟' }
+]
+
+const addSticker = (sticker) => {
+  playSelect()
+  activeStickers.value.push({
+    id: `${sticker.id}_${Date.now()}`,
+    label: sticker.label,
+    type: sticker.type,
+    src: sticker.src,
+    x: 0.5,
+    y: 0.5,
+    scale: 1.0,
+    rotation: 0,
+    isError: false
+  })
+  selectedStickerIndex.value = activeStickers.value.length - 1
+}
+
+const removeSticker = (index) => {
+  playClick()
+  activeStickers.value.splice(index, 1)
+  if (selectedStickerIndex.value === index) {
+    selectedStickerIndex.value = null
+  } else if (selectedStickerIndex.value > index) {
+    selectedStickerIndex.value--
+  }
+}
+
+const bringToFront = () => {
+  if (selectedStickerIndex.value === null) return
+  const index = selectedStickerIndex.value
+  const sticker = activeStickers.value.splice(index, 1)[0]
+  activeStickers.value.push(sticker)
+  selectedStickerIndex.value = activeStickers.value.length - 1
+}
+
+const sendToBack = () => {
+  if (selectedStickerIndex.value === null) return
+  const index = selectedStickerIndex.value
+  const sticker = activeStickers.value.splice(index, 1)[0]
+  activeStickers.value.unshift(sticker)
+  selectedStickerIndex.value = 0
+}
+
+const handleCustomStickerUpload = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    activeStickers.value.push({
+      id: `custom_${Date.now()}`,
+      label: 'Custom Sticker',
+      type: 'image',
+      src: event.target.result,
+      x: 0.5,
+      y: 0.5,
+      scale: 1.0,
+      rotation: 0,
+      isError: false
+    })
+    selectedStickerIndex.value = activeStickers.value.length - 1
+  }
+  reader.readAsDataURL(file)
+}
+
+const startDrag = (event, index) => {
+  selectedStickerIndex.value = index
+  draggingIndex.value = index
+  const clientX = event.touches ? event.touches[0].clientX : event.clientX
+  const clientY = event.touches ? event.touches[0].clientY : event.clientY
+  
+  startX = clientX
+  startY = clientY
+  startStickerX = activeStickers.value[index].x
+  startStickerY = activeStickers.value[index].y
+  
+  document.addEventListener('mousemove', onDrag)
+  document.addEventListener('touchmove', onDrag, { passive: false })
+  document.addEventListener('mouseup', stopDrag)
+  document.addEventListener('touchend', stopDrag)
+}
+
+const onDrag = (event) => {
+  if (draggingIndex.value === null) return
+  event.preventDefault()
+  
+  const clientX = event.touches ? event.touches[0].clientX : event.clientX
+  const clientY = event.touches ? event.touches[0].clientY : event.clientY
+  
+  const rect = previewCardRef.value ? previewCardRef.value.getBoundingClientRect() : null
+  if (!rect) return
+  
+  const dx = (clientX - startX) / rect.width
+  const dy = (clientY - startY) / rect.height
+  
+  let newX = startStickerX + dx
+  let newY = startStickerY + dy
+  
+  activeStickers.value[draggingIndex.value].x = Math.max(0, Math.min(1, newX))
+  activeStickers.value[draggingIndex.value].y = Math.max(0, Math.min(1, newY))
+}
+
+const stopDrag = () => {
+  draggingIndex.value = null
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('touchmove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
+  document.removeEventListener('touchend', stopDrag)
 }
 
 // ── Picker ─────────────────────────────────────────────────
@@ -928,6 +1296,7 @@ const doRetake = () => {
 // ── Pure Canvas 2D Strip Generator (no external libs) ──────
 const FRAME_BG = {
   classic: '#ffffff',
+  cwsi: '#ffffff',
   vintage: '#1a1210',
   floral: '#fde8f2',
   pastel: '#e8f4fc',
@@ -1033,6 +1402,95 @@ function loadFiltered(src, filter) {
   })
 }
 
+// Helper to load external logo
+function loadImage(src) {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+
+// Fallback sticker drawing in case image assets are not loaded
+async function drawFallbackSticker(ctx, id, size) {
+  ctx.save()
+  
+  // 1. Draw Wooden Stick
+  ctx.fillStyle = '#e5c298' // nice light wood color
+  ctx.beginPath()
+  ctx.roundRect(-size * 0.08, 0, size * 0.16, size * 0.7, 4)
+  ctx.fill()
+  
+  // Shadow/texture for stick
+  ctx.fillStyle = '#cda675'
+  ctx.fillRect(-size * 0.08, 0, size * 0.04, size * 0.7)
+  
+  // 2. Draw Fan Head (Main Circular part)
+  ctx.fillStyle = '#ffffff'
+  ctx.strokeStyle = '#1b6fb5'
+  ctx.lineWidth = size * 0.05
+  ctx.beginPath()
+  ctx.arc(0, -size * 0.1, size * 0.45, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  
+  if (id.includes('logo_fan1')) {
+    // Cordova logo themed fan
+    // Blue inner crest
+    ctx.fillStyle = '#e8f4fd'
+    ctx.beginPath()
+    ctx.arc(0, -size * 0.1, size * 0.38, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Wave lines inside fallback logo
+    ctx.strokeStyle = '#1b6fb5'
+    ctx.lineWidth = size * 0.03
+    ctx.beginPath()
+    for (let wave = 0; wave < 3; wave++) {
+      const yOffset = -size * 0.05 + wave * size * 0.08
+      ctx.moveTo(-size * 0.25, yOffset)
+      ctx.bezierCurveTo(-size * 0.12, yOffset - 5, -size * 0.08, yOffset + 5, 0, yOffset)
+      ctx.bezierCurveTo(size * 0.08, yOffset - 5, size * 0.12, yOffset + 5, size * 0.25, yOffset)
+    }
+    ctx.stroke()
+    
+    // Curved typography representation
+    ctx.fillStyle = '#1b3a6e'
+    ctx.font = `bold ${Math.max(4, size * 0.05)}px system-ui`
+    ctx.textAlign = 'center'
+    ctx.fillText('CORDOVA', 0, -size * 0.26)
+    ctx.fillText('WATER SYSTEM', 0, -size * 0.18)
+  } else {
+    // "I ❤️ CWSI" fan
+    // Red Heart
+    ctx.fillStyle = '#e02424'
+    ctx.beginPath()
+    const hx = 0, hy = -size * 0.25, hw = size * 0.18, hh = size * 0.16
+    ctx.moveTo(hx, hy + hh * 0.35)
+    ctx.bezierCurveTo(hx - hw * 0.5, hy + hh * 0.1, hx - hw * 0.52, hy - hh * 0.28, hx, hy - hh * 0.05)
+    ctx.bezierCurveTo(hx + hw * 0.52, hy - hh * 0.28, hx + hw * 0.5, hy + hh * 0.1, hx, hy + hh * 0.35)
+    ctx.fill()
+    
+    // Text: I
+    ctx.fillStyle = '#1b3a6e'
+    ctx.font = `bold ${Math.max(8, size * 0.1)}px system-ui`
+    ctx.textAlign = 'center'
+    ctx.fillText('I', -size * 0.18, -size * 0.2)
+    
+    // Text: CWSI
+    ctx.font = `bold ${Math.max(9, size * 0.12)}px system-ui`
+    ctx.fillText('CWSI', 0, -size * 0.02)
+    
+    // Brgy Gabi subtitle
+    ctx.fillStyle = '#555'
+    ctx.font = `${Math.max(4, size * 0.04)}px system-ui`
+    ctx.fillText('BRGY. GABI', 0, size * 0.12)
+  }
+  
+  ctx.restore()
+}
+
 const generateStripCanvas = async (scale = 3) => {
   const frame = selectedFrame.value
   const filter = FILTER_CSS[selectedFilter.value] || ''
@@ -1040,12 +1498,15 @@ const generateStripCanvas = async (scale = 3) => {
 
   // Strip dimensions (logical pixels, ×scale for HQ)
   const PW = 240 // photo width
-  const PH = Math.round((PW * 3) / 4) // 4:3
+  const PH = Math.round((PW * 3) / 4) // 4:3 photo height
   const PAD = 10 // padding around photos & between
   const SPRH = frame === 'vintage' ? 18 : 0
-  const HDR = frame === 'onepiece' ? 28 : 0
+  const HDR = frame === 'onepiece' ? 28 : frame === 'cwsi' ? 60 : 0
+  const FTR = frame === 'cwsi' ? 40 : 0
   const SW = PW + PAD * 2
-  const SH = HDR + SPRH + (PH + PAD) * photos.length + PAD + SPRH + 20
+  const SH = HDR + SPRH + (PH + PAD) * photos.length + PAD + SPRH + FTR + 20
+
+
 
   const c = document.createElement('canvas')
   c.width = SW * scale
@@ -1073,6 +1534,51 @@ const generateStripCanvas = async (scale = 3) => {
     ctx.fillRect(PAD, HDR - 3, SW - PAD * 2, 1.5)
   }
 
+  // 4b. CWSI header
+  if (frame === 'cwsi') {
+    // Blue gradient header bg
+    const hdrGrad = ctx.createLinearGradient(0, 0, 0, HDR)
+    hdrGrad.addColorStop(0, '#dceefb')
+    hdrGrad.addColorStop(1, '#ffffff')
+    ctx.fillStyle = hdrGrad
+    ctx.fillRect(0, 0, SW, HDR)
+
+    // Logo
+    const cwsiLogo = await loadImage('/logo.png')
+    if (cwsiLogo) {
+      const lw = 44, lh = (cwsiLogo.naturalHeight / cwsiLogo.naturalWidth) * lw
+      ctx.drawImage(cwsiLogo, (SW - lw) / 2, 4, lw, lh)
+    }
+
+    // Title text
+    ctx.fillStyle = '#1b3a6e'
+    ctx.font = `bold ${8}px system-ui, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.fillText('CORDOVA WATER SYSTEM INC.', SW / 2, HDR - 14)
+
+    // Wave decoration lines
+    const waveY = HDR - 8
+    const waves = [
+      { x: SW / 2 - 30, w: 20, color: '#1b6fb5' },
+      { x: SW / 2 - 8,  w: 16, color: '#63b3e8' },
+      { x: SW / 2 + 10, w: 20, color: '#1b6fb5' },
+    ]
+    waves.forEach(({ x, w, color }) => {
+      ctx.fillStyle = color
+      ctx.beginPath()
+      ctx.roundRect(x, waveY, w, 3, 2)
+      ctx.fill()
+    })
+
+    // Separator line
+    ctx.strokeStyle = '#1b6fb5'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(PAD, HDR - 2)
+    ctx.lineTo(SW - PAD, HDR - 2)
+    ctx.stroke()
+  }
+
   // 5. Load all images
   const imgs = await Promise.all(photos.map((src) => loadFiltered(src, filter)))
 
@@ -1098,7 +1604,22 @@ const generateStripCanvas = async (scale = 3) => {
       ctx.roundRect(PAD, y, PW, PH, 12)
       ctx.clip()
     }
-    ctx.drawImage(img, PAD, y, PW, PH)
+    // Draw image with center-crop to fit 4:3 without distortion
+  const srcRatio = img.naturalWidth / img.naturalHeight
+  const dstRatio = PW / PH
+  let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight
+  if (srcRatio > dstRatio) {
+    // image wider than needed
+    sh = img.naturalHeight
+    sw = sh * dstRatio
+    sx = (img.naturalWidth - sw) / 2
+  } else {
+    // image taller than needed
+    sw = img.naturalWidth
+    sh = sw / dstRatio
+    sy = (img.naturalHeight - sh) / 2
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, PAD, y, PW, PH)
     ctx.restore()
 
     // Photo border
@@ -1110,6 +1631,7 @@ const generateStripCanvas = async (scale = 3) => {
       minimal: '#222',
       hearts: '#c0405a',
       onepiece: '#e8a020',
+      cwsi: '#1b6fb5',
     }
     if (frame === 'hearts') {
       ctx.save()
@@ -1118,6 +1640,12 @@ const generateStripCanvas = async (scale = 3) => {
       heartClip(ctx, cx, cy, PW * 0.9, PH * 1.05)
       ctx.stroke()
       ctx.restore()
+    } else if (frame === 'cwsi') {
+      ctx.strokeStyle = '#1b6fb5'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.roundRect(PAD + 1, y + 1, PW - 2, PH - 2, 6)
+      ctx.stroke()
     } else {
       ctx.strokeStyle = borderColors[frame] || '#e0d8d0'
       ctx.lineWidth = frame === 'minimal' ? 2.5 : 1.5
@@ -1128,12 +1656,86 @@ const generateStripCanvas = async (scale = 3) => {
   // 7. Vintage sprocket bottom
   if (frame === 'vintage') drawSprockets(ctx, SW, SH - SPRH / 2, 7)
 
+  // 7b. CWSI footer
+  if (frame === 'cwsi') {
+    const footerY = SH - FTR - 20
+    const ftrGrad = ctx.createLinearGradient(0, footerY, 0, SH)
+    ftrGrad.addColorStop(0, '#ffffff')
+    ftrGrad.addColorStop(1, '#dceefb')
+    ctx.fillStyle = ftrGrad
+    ctx.fillRect(0, footerY, SW, FTR + 20)
+
+    // Footer separator
+    ctx.strokeStyle = '#1b6fb5'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(PAD, footerY + 2)
+    ctx.lineTo(SW - PAD, footerY + 2)
+    ctx.stroke()
+
+    // Footer logo
+    const cwsiLogoF = await loadImage('/logo.png')
+    if (cwsiLogoF) {
+      const lw = 32, lh = (cwsiLogoF.naturalHeight / cwsiLogoF.naturalWidth) * lw
+      ctx.drawImage(cwsiLogoF, (SW - lw) / 2, footerY + 6, lw, lh)
+    }
+
+    // Footer text
+    ctx.fillStyle = '#1b3a6e'
+    ctx.font = `bold ${7}px system-ui, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.fillText('CORDOVA WATER SYSTEM INC.', SW / 2, SH - 6)
+  }
+
+  // 7c. CWSI black cutting border (outermost)
+  if (frame === 'cwsi') {
+    ctx.strokeStyle = '#000000'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(0.25, 0.25, SW - 0.5, SH - 0.5)
+  }
+
   // 8. Watermark
   const wmDark = frame === 'vintage' || frame === 'onepiece'
   ctx.fillStyle = wmDark ? 'rgba(255,255,255,0.4)' : 'rgba(90,50,30,0.45)'
   ctx.font = `italic ${7}px "Playfair Display", Georgia, serif`
   ctx.textAlign = 'center'
   ctx.fillText(`Snapify · ${timestamp.value}`, SW / 2, SH - 6)
+
+  // Logo overlay (draw default logo if frame is classic or minimal)
+  if (frame === 'classic' || frame === 'minimal') {
+    const logoImg = await loadImage('/logo.png')
+    if (logoImg) {
+      const logoW = 80
+      const logoH = (logoImg.naturalHeight / logoImg.naturalWidth) * logoW
+      ctx.drawImage(logoImg, SW - logoW - 20, SH - logoH - 30, logoW, logoH)
+    }
+  }
+
+  // Draw active stickers (draggable & resizable)
+  for (const sticker of activeStickers.value) {
+    ctx.save()
+    const tx = sticker.x * SW
+    const ty = sticker.y * SH
+    ctx.translate(tx, ty)
+    ctx.rotate((sticker.rotation * Math.PI) / 180)
+    
+    const size = 48 * sticker.scale
+    
+    if (sticker.type === 'image') {
+      const img = await loadImage(sticker.src)
+      if (img) {
+        ctx.drawImage(img, -size / 2, -size / 2, size, size)
+      } else {
+        await drawFallbackSticker(ctx, sticker.id, size)
+      }
+    } else if (sticker.type === 'emoji') {
+      ctx.font = `${size}px system-ui`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(sticker.src, 0, 0)
+    }
+    ctx.restore()
+  }
 
   return c
 }
@@ -1254,7 +1856,7 @@ onBeforeUnmount(() => {
 ════════════════════════════════════════ */
 .booth-root {
   min-height: 100dvh;
-  background: linear-gradient(155deg, #fff8f0 0%, #fde8d8 55%, #f9dccf 100%);
+  background: #fff0f3;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -1306,7 +1908,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(194, 130, 90, 0.16);
+  border: 1px solid rgba(255, 77, 125, 0.16);
   border-radius: 14px;
   padding: 9px 14px;
   backdrop-filter: blur(10px);
@@ -1329,19 +1931,19 @@ onBeforeUnmount(() => {
   height: 22px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 2px solid #c2825a;
+  border: 2px solid #ff4d7d;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.62rem;
   font-weight: 800;
-  color: #8b4513;
+  color: #d81b60;
   background: #fff;
   transition: all 0.3s;
   font-family: 'Inter', sans-serif;
 }
 .step-item.active .step-bubble {
-  background: #c2825a;
+  background: #ff4d7d;
   color: #fff;
 }
 .step-item.done .step-bubble {
@@ -1352,14 +1954,14 @@ onBeforeUnmount(() => {
 .step-lbl {
   font-size: 0.6rem;
   font-weight: 700;
-  color: #8b4513;
+  color: #d81b60;
   white-space: nowrap;
   font-family: 'Inter', sans-serif;
 }
 .step-line {
   flex: 1;
   height: 1.5px;
-  background: rgba(194, 130, 90, 0.28);
+  background: rgba(255, 77, 125, 0.28);
   min-width: 10px;
 }
 
@@ -1411,6 +2013,11 @@ onBeforeUnmount(() => {
 .fr-onepiece {
   border: 5px solid #e8a020;
   border-radius: 6px;
+}
+.fr-cwsi {
+  border: 5px solid #1b6fb5;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 2px #63b3e8;
 }
 
 .vf-video {
@@ -1680,12 +2287,12 @@ onBeforeUnmount(() => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid #c2825a;
+  border: 2px solid #ff4d7d;
   background: transparent;
   transition: all 0.3s;
 }
 .prog-dot.filled {
-  background: #c2825a;
+  background: #ff4d7d;
   transform: scale(1.3);
 }
 .prog-dot.pulsing {
@@ -1709,7 +2316,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   flex-wrap: wrap;
   background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(194, 130, 90, 0.14);
+  border: 1px solid rgba(255, 77, 125, 0.14);
   border-radius: 14px;
   padding: 12px 14px;
   backdrop-filter: blur(8px);
@@ -1724,7 +2331,7 @@ onBeforeUnmount(() => {
 .chip-label {
   font-size: 0.62rem;
   font-weight: 700;
-  color: #9a6040;
+  color: #ff8da1;
   text-transform: uppercase;
   letter-spacing: 0.9px;
   display: flex;
@@ -1740,23 +2347,23 @@ onBeforeUnmount(() => {
 .chip {
   padding: 5px 12px;
   border-radius: 99px;
-  border: 1.5px solid rgba(194, 130, 90, 0.26);
+  border: 1.5px solid rgba(255, 77, 125, 0.26);
   background: rgba(255, 255, 255, 0.75);
   font-size: 0.75rem;
   font-weight: 600;
-  color: #8b4513;
+  color: #ff4d7d;
   cursor: pointer;
   transition: all 0.12s;
   font-family: 'Inter', sans-serif;
 }
 .chip:hover {
-  background: rgba(194, 130, 90, 0.12);
+  background: rgba(255, 77, 125, 0.12);
 }
 .chip.active {
-  background: linear-gradient(135deg, #c2825a, #8b4513);
+  background: linear-gradient(135deg, #ff69b4, #e91e63);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.28);
+  box-shadow: 0 2px 8px rgba(233, 30, 99, 0.28);
 }
 
 /* ════════════════════════════════════════
@@ -1773,15 +2380,15 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  border: 1.5px solid rgba(194, 130, 90, 0.26);
+  border: 1.5px solid rgba(255, 77, 125, 0.26);
   background: rgba(255, 255, 255, 0.75);
   border-radius: 14px;
   padding: 10px 14px;
   cursor: pointer;
-  color: #7a4020;
+  color: #ff4d7d;
   transition: all 0.12s;
   font-family: 'Inter', sans-serif;
-  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.06);
+  box-shadow: 0 2px 8px rgba(255, 77, 125, 0.06);
   min-width: 72px;
 }
 .act-btn span {
@@ -1790,7 +2397,7 @@ onBeforeUnmount(() => {
   margin-top: 2px;
 }
 .act-btn:hover {
-  background: rgba(194, 130, 90, 0.12);
+  background: rgba(255, 77, 125, 0.12);
   transform: translateY(-1px);
 }
 .act-btn:active {
@@ -2298,6 +2905,11 @@ onBeforeUnmount(() => {
 .strip-bg-onepiece {
   background: #1a3a6e;
 }
+.strip-bg-cwsi {
+  background: #ffffff;
+  /* Black outer cutting border drawn via canvas; CSS border for visual preview */
+  outline: 1px solid #000;
+}
 
 /* Photo wrapper — per-frame border around each photo */
 .photos-area {
@@ -2332,6 +2944,10 @@ onBeforeUnmount(() => {
 }
 .border-onepiece {
   outline: 2px solid #e8a020;
+}
+.border-cwsi {
+  outline: 2px solid #1b6fb5;
+  border-radius: 4px;
 }
 .strip-photo {
   width: 100%;
@@ -2434,6 +3050,100 @@ onBeforeUnmount(() => {
 }
 .strip-bg-onepiece .default-footer {
   color: #e8a020;
+}
+
+/* CWSI Strip — header & footer */
+.cwsi-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 2px 2px;
+  border-bottom: 1.5px solid #1b6fb5;
+  margin-bottom: 2px;
+  gap: 1px;
+  background: linear-gradient(180deg, #e8f4fd 0%, #ffffff 100%);
+}
+.cwsi-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+.cwsi-logo-lg {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+.cwsi-title {
+  font-size: 0.28rem;
+  font-weight: 900;
+  color: #1b3a6e;
+  text-align: center;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+  font-family: system-ui, sans-serif;
+}
+.cwsi-title-lg {
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: #1b3a6e;
+  text-align: center;
+  letter-spacing: 0.6px;
+  font-family: system-ui, sans-serif;
+}
+.cwsi-header-lg {
+  padding: 8px 6px 4px;
+  gap: 4px;
+  border-bottom: 2px solid #1b6fb5;
+  margin-bottom: 4px;
+  background: linear-gradient(180deg, #dceefb 0%, #ffffff 100%);
+}
+.cwsi-wave-bar {
+  display: flex;
+  gap: 2px;
+  margin-top: 1px;
+}
+.cwsi-wave-bar span {
+  width: 10px;
+  height: 3px;
+  border-radius: 99px;
+  background: #1b6fb5;
+}
+.cwsi-wave-bar span:nth-child(2) {
+  width: 14px;
+  background: #63b3e8;
+}
+.cwsi-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.28rem;
+  font-weight: 700;
+  color: #1b3a6e;
+  font-family: system-ui, sans-serif;
+  padding: 2px 0;
+  border-top: 1.5px solid #1b6fb5;
+  background: linear-gradient(0deg, #e8f4fd 0%, #ffffff 100%);
+}
+.cwsi-footer img {
+  width: 10px;
+  height: 10px;
+  object-fit: contain;
+}
+.cwsi-footer-lg {
+  font-size: 0.58rem;
+  gap: 6px;
+  padding: 4px 0;
+  border-top: 2px solid #1b6fb5;
+}
+.cwsi-footer-lg img {
+  width: 22px;
+  height: 22px;
+}
+/* Cut border on the strip card when CWSI is selected */
+.strip-bg-cwsi {
+  border: 0.5px solid #000000;
+  box-shadow: 0 0 0 0.5px #000, 0 8px 28px rgba(0,0,0,0.4);
 }
 
 /* ════════════════════════════════════════
@@ -2852,4 +3562,303 @@ onBeforeUnmount(() => {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* ══ INTERACTIVE PREVIEW & STICKERS CSS ══ */
+.interactive-preview-wrapper {
+  background: rgba(255, 255, 255, 0.4);
+  padding: 14px;
+  border-radius: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px dashed rgba(255, 77, 125, 0.25);
+  margin-bottom: 8px;
+  backdrop-filter: blur(8px);
+}
+.interactive-strip-card {
+  width: 180px;
+  padding: 8px 8px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-shadow: 0 10px 30px rgba(255, 77, 125, 0.15);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+.preview-hint-text {
+  font-size: 0.65rem;
+  color: #ff4d7d;
+  text-align: center;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+.placeholder-photo {
+  aspect-ratio: 4/3;
+  background: #fff0f3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #ff8da1;
+  font-size: 0.65rem;
+}
+
+/* Draggable Stickers Overlay */
+.stickers-overlay-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.draggable-sticker {
+  position: absolute;
+  pointer-events: auto;
+  cursor: move;
+  user-select: none;
+}
+.sticker-content {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.draggable-sticker img {
+  max-width: 48px;
+  max-height: 48px;
+  display: block;
+}
+.emoji-sticker {
+  font-size: 26px;
+  line-height: 1;
+}
+
+/* Fallback fan sticker preview inside HTML */
+.fallback-sticker-fan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48px;
+  height: 48px;
+}
+.fallback-sticker-fan .fan-head {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #1b6fb5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 6px;
+  font-weight: bold;
+  color: #1b3a6e;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.fallback-sticker-fan .fan-stick {
+  width: 4px;
+  height: 16px;
+  background: #e5c298;
+  border-radius: 2px;
+  margin-top: -2px;
+}
+.sticker-outline {
+  position: absolute;
+  inset: -6px;
+  border: 1.5px dashed #ff4d7d;
+  border-radius: 4px;
+  pointer-events: none;
+}
+.delete-btn {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff3b30;
+  border: none;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* iOS Segmented Control tabs */
+.ios-segmented-control {
+  display: flex;
+  background: rgba(255, 77, 125, 0.08);
+  padding: 2.5px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 77, 125, 0.12);
+}
+.segment-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #ff8da1;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.segment-btn.active {
+  background: #ffffff;
+  color: #ff4d7d;
+  box-shadow: 0px 3px 8px rgba(255, 77, 125, 0.15), 0px 3px 1px rgba(255, 77, 125, 0.05);
+}
+
+/* Stickers grid catalog selector */
+.stickers-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sticker-picker-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(255, 77, 125, 0.15);
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(255, 77, 125, 0.04);
+}
+.sticker-picker-btn:hover {
+  background: #fff5f7;
+  transform: translateY(-1.5px);
+  border-color: #ff4d7d;
+}
+.sticker-btn-preview {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sticker-btn-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.emoji-preview {
+  font-size: 24px;
+}
+.sticker-picker-label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #ff8da1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+.upload-btn-preview {
+  color: #ff4d7d;
+  background: rgba(255, 77, 125, 0.08);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+}
+.upload-custom-sticker-label {
+  justify-content: center;
+}
+
+/* Selected Sticker Adjustment Controls panel */
+.selected-sticker-controls {
+  background: #ffffff;
+  border: 1px solid rgba(255, 77, 125, 0.15);
+  border-radius: 16px;
+  padding: 14px;
+  margin-top: 16px;
+  box-shadow: 0 4px 16px rgba(255, 77, 125, 0.06);
+}
+.controls-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #d81b60;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.control-row label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #ff8da1;
+  width: 50px;
+}
+.control-row input[type="range"] {
+  flex: 1;
+  accent-color: #ff4d7d;
+  height: 4px;
+  background: rgba(255, 77, 125, 0.12);
+  border-radius: 2px;
+}
+.control-val {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ff4d7d;
+  width: 32px;
+  text-align: right;
+}
+.control-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+.control-action-btn {
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 77, 125, 0.15);
+  background: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #ff4d7d;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.control-action-btn:hover {
+  background: #fff5f7;
+  border-color: #ff4d7d;
+}
+.control-action-btn.danger {
+  grid-column: span 2;
+  background: #ff3b30;
+  color: white;
+  border-color: transparent;
+}
+.control-action-btn.danger:hover {
+  background: #fc3d39;
+}
 </style>
+
