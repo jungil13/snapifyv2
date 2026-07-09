@@ -87,7 +87,7 @@
           <label class="chip-label"><CameraIcon :size="11" />Number of Photos</label>
           <div class="chip-row">
             <button
-              v-for="c in [2, 3, 4]"
+              v-for="c in [1, 2, 3, 4]"
               :key="c"
               class="chip"
               :class="{ active: selectedLayout == c }"
@@ -245,6 +245,7 @@
               <img src="/logo.png" style="height:20px; object-fit:contain;" />
             </div>
             <div class="photos-area" :class="{
+              'custom-tpl-single': selectedFrame === 'custom_tpl' && customTplLayout === 'single',
               'custom-tpl-strip': selectedFrame === 'custom_tpl' && customTplLayout === 'strip',
               'custom-tpl-wide': selectedFrame === 'custom_tpl' && customTplLayout === 'wide',
               'custom-tpl-quad': selectedFrame === 'custom_tpl' && customTplLayout === 'quad',
@@ -466,6 +467,7 @@
             <div class="ctb-layout-row">
               <button
                 v-for="l in [
+                  { id: 'single', label: 'Single', desc: '1 Photo' },
                   { id: 'strip', label: 'Strip', desc: '3 stacked' },
                   { id: 'wide',  label: 'Wide',  desc: '1 + 2 side' },
                   { id: 'quad',  label: 'Grid',  desc: '2 × 2' },
@@ -473,10 +475,11 @@
                 :key="l.id"
                 class="ctb-layout-btn"
                 :class="{ active: customTplLayout === l.id }"
-                @click="customTplLayout = l.id; pick('layout', l.id === 'quad' ? 4 : 3)"
+                @click="customTplLayout = l.id; pick('layout', l.id === 'quad' ? 4 : (l.id === 'single' ? 1 : 3))"
               >
                 <div class="ctb-layout-icon" :class="'ctb-icon-' + l.id">
-                  <span v-if="l.id === 'strip'"><span v-for="n in 3" :key="n" class="ctb-slot ctb-slot-h"></span></span>
+                  <span v-if="l.id === 'single'"><span class="ctb-slot ctb-slot-h" style="height:100%"></span></span>
+                  <span v-else-if="l.id === 'strip'"><span v-for="n in 3" :key="n" class="ctb-slot ctb-slot-h"></span></span>
                   <span v-else-if="l.id === 'wide'" style="display:flex;gap:2px;width:100%">
                     <span class="ctb-slot ctb-slot-tall"></span>
                     <span style="display:flex;flex-direction:column;gap:2px;flex:1">
@@ -2008,7 +2011,15 @@ const generateStripCanvas = async (scale = 3) => {
       ctx.restore()
     }
 
-    if (layout === 'strip') {
+if (layout === 'single') {
+      const px = PAD
+      const py = startY
+      const photoW = areaW
+      const photoH = areaH
+      drawSlot(0, px, py, photoW, photoH)
+    }
+    else if (layout === 'strip') {
+
       const GAP = 20
       const photoH = (areaH - (GAP * 2)) / 3
       const photoW = photoH * (4/3)
@@ -4888,6 +4899,25 @@ onBeforeUnmount(() => {
 }
 
 /* Custom Template photo area layouts */
+.photos-area.custom-tpl-single {
+  display: flex;
+  padding: 5px;
+}
+.photos-area.custom-tpl-single .strip-photo-wrap {
+  flex: 1;
+  border: 1.5px solid;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  display: flex;
+}
+.photos-area.custom-tpl-single .strip-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 .photos-area.custom-tpl-strip {
   display: flex;
   flex-direction: column;
