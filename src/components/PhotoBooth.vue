@@ -84,10 +84,10 @@
       <!-- Photo / Timer chips -->
       <div class="chips-panel">
         <div class="chip-group">
-          <label class="chip-label"><CameraIcon :size="11" />Photos</label>
+          <label class="chip-label"><CameraIcon :size="11" />Number of Photos</label>
           <div class="chip-row">
             <button
-              v-for="c in [2, 3, 4, 6]"
+              v-for="c in [2, 3, 4]"
               :key="c"
               class="chip"
               :class="{ active: selectedLayout == c }"
@@ -168,36 +168,95 @@
         <div class="interactive-preview-wrapper">
           <div 
             class="interactive-strip-card" 
-            :class="'strip-bg-' + selectedFrame"
-            :style="stripBgStyle"
+            :class="['strip-bg-' + selectedFrame, { 'template-strip': !!selectedTemplatePreset, 'anniversary-card': selectedFrame === 'anniversary' }]"
+            :style="selectedFrame === 'custom' ? { backgroundColor: customBgColor } : stripBgStyle"
             ref="previewCardRef"
           >
+            <!-- Full-template presets (CWSI etc) -->
+            <template v-if="selectedTemplatePreset">
+              <!-- 1. Photos layer — sits behind the frame overlay -->
+              <div class="template-photos-layer">
+                <template v-if="snaps.length > 0">
+                  <div
+                    v-for="(snap, i) in snaps"
+                    :key="i"
+                    class="template-photo-slot"
+                    :style="templateSlotStyle(i)"
+                  >
+                    <img :src="snap" class="template-photo-img" :class="filterClass" @click="openCropModal(i)" :style="{ cursor: 'pointer', transform: `scale(${photoTransforms[i]?.zoom || 1}) translate(${photoTransforms[i]?.panX || 0}px, ${photoTransforms[i]?.panY || 0}px)` }" />
+                  </div>
+                </template>
+                <template v-else>
+                  <div
+                    v-for="n in selectedTemplatePreset.forceLayout"
+                    :key="n"
+                    class="template-photo-slot placeholder-photo"
+                    :style="templateSlotStyle(n - 1)"
+                  >
+                    <div class="placeholder-content">
+                      <CameraIcon :size="14" />
+                      <span>Pose {{ n }}</span>
+                    </div>
+                  </div>
+                </template>
+              </div>
+              <!-- 2. Frame overlay image — renders ON TOP of photos -->
+              <div
+                v-if="selectedTemplatePreset.image"
+                class="template-frame-overlay"
+                :style="{ backgroundImage: `url('${selectedTemplatePreset.image}')` }"
+              ></div>
+              <!-- 3. CSS dark preset overlay (cwsi_dark) -->
+              <div v-else class="template-dark-overlay">
+                <div class="tdo-header">
+                  <div class="tdo-logo-ring">CWSI</div>
+                  <span class="tdo-title">Cordova Water System Inc.</span>
+                </div>
+                <div class="tdo-footer">
+                  <span class="tdo-anniv">Happy <em>1st</em> anniversary</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Standard strip layout -->
+            <template v-else>
             <!-- Frame header (One Piece banner etc) -->
             <div v-if="selectedFrame === 'onepiece'" class="op-header">
               <AnchorIcon :size="14" />
               <span>ONE PIECE</span>
               <AnchorIcon :size="14" />
             </div>
-            <!-- CWSI header -->
-            <div v-if="selectedFrame === 'cwsi'" class="cwsi-header">
-              <img src="/logo.png" class="cwsi-logo" alt="CWSI Logo" />
-              <div class="cwsi-title">CORDOVA WATER SYSTEM INC.</div>
-              <div class="cwsi-wave-bar"><span v-for="n in 3" :key="n"></span></div>
-            </div>
+
             <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr">
               <span v-for="n in 5" :key="n" class="vspr"></span>
             </div>
 
+            <!-- Custom Template: Title Header (Now at the top!) -->
+            <div
+              v-if="selectedFrame === 'custom_tpl'"
+              class="custom-tpl-header"
+              :style="{ color: customTplTextColor, borderColor: customTplBorder, fontFamily: customTplFont }"
+            >
+              <span class="ctpl-title">{{ customTplTitle }}</span>
+            </div>
+
             <!-- Photos / Cozy Placeholders -->
-            <div class="photos-area">
+            <div v-if="selectedFrame === 'custom_tpl' && customTplShowLogo" class="ctpl-logo-placeholder">
+              <img src="/logo.png" style="height:20px; object-fit:contain;" />
+            </div>
+            <div class="photos-area" :class="{
+              'custom-tpl-strip': selectedFrame === 'custom_tpl' && customTplLayout === 'strip',
+              'custom-tpl-wide': selectedFrame === 'custom_tpl' && customTplLayout === 'wide',
+              'custom-tpl-quad': selectedFrame === 'custom_tpl' && customTplLayout === 'quad',
+            }">
               <template v-if="snaps.length > 0">
                 <div
                   v-for="(snap, i) in snaps"
                   :key="i"
                   class="strip-photo-wrap"
-                  :class="'border-' + selectedFrame"
+                  :class="'border-' + selectedFrame" :style="selectedFrame === 'custom' ? { outline: '2px solid ' + customBorderColor } : {}"
                 >
-                  <img :src="snap" class="strip-photo" :class="filterClass" />
+                  <img :src="snap" class="strip-photo" :class="filterClass" @click="openCropModal(i)" :style="{ cursor: 'pointer', transform: `scale(${photoTransforms[i]?.zoom || 1}) translate(${photoTransforms[i]?.panX || 0}px, ${photoTransforms[i]?.panY || 0}px)` }" />
                   <div v-if="selectedFrame === 'onepiece'" class="op-photo-badge">
                     {{ opLabels[i % opLabels.length] }}
                   </div>
@@ -213,7 +272,7 @@
                   v-for="n in Number(selectedLayout)"
                   :key="n"
                   class="strip-photo-wrap placeholder-photo"
-                  :class="'border-' + selectedFrame"
+                  :class="'border-' + selectedFrame" :style="selectedFrame === 'custom' ? { outline: '2px solid ' + customBorderColor } : {}"
                 >
                   <div class="placeholder-content">
                     <CameraIcon :size="14" />
@@ -223,24 +282,23 @@
               </template>
             </div>
 
+
+
             <!-- Strip footer / watermark -->
-            <div class="strip-footer" :class="'footer-' + selectedFrame">
+            <div class="strip-footer" :class="'footer-' + selectedFrame" v-if="(showWatermark && selectedFrame !== 'anniversary') || selectedFrame === 'onepiece'">
               <div v-if="selectedFrame === 'onepiece'" class="op-footer">
                 <ZapIcon :size="10" />
                 <span>Snapify · {{ timestamp }}</span>
                 <SwordIcon :size="10" />
               </div>
-              <div v-else-if="selectedFrame === 'cwsi'" class="cwsi-footer">
-                <img src="/logo.png" class="cwsi-footer-logo" alt="CWSI" />
-                <span>CORDOVA WATER SYSTEM INC.</span>
-              </div>
-              <div class="default-footer" v-else>Snapify · {{ timestamp }}</div>
+              <div class="default-footer" v-else-if="showWatermark">Snapify · {{ timestamp }}</div>
             </div>
 
             <!-- Bottom sprockets for vintage -->
             <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr-bot">
               <span v-for="n in 5" :key="n" class="vspr"></span>
             </div>
+            </template>
 
             <!-- Active Stickers Overlay Layer -->
             <div class="stickers-overlay-container">
@@ -269,8 +327,11 @@
                       <div class="fan-stick"></div>
                     </div>
                   </template>
-                  <template v-else>
+                  <template v-else-if="sticker.type === 'emoji'">
                     <span class="emoji-sticker">{{ sticker.src }}</span>
+                  </template>
+                  <template v-else-if="sticker.type === 'text'">
+                    <span class="text-sticker" :style="{ color: sticker.color, fontFamily: sticker.font, fontSize: '48px', whiteSpace: 'nowrap' }">{{ sticker.text }}</span>
                   </template>
                   
                   <!-- Selected outline and action buttons -->
@@ -283,7 +344,17 @@
 
           </div>
         </div>
-        <p class="preview-hint-text">💡 Tap or drag stickers to position them on your strip</p>
+        <div class="preview-footer-row">
+          <p class="preview-hint-text">💡 Tap or drag stickers to position them on your strip</p>
+          <button 
+            class="wm-toggle-btn"
+            :class="{ 'wm-off': !showWatermark }"
+            @click="showWatermark = !showWatermark"
+            :title="showWatermark ? 'Hide watermark' : 'Show watermark'"
+          >
+            <span>{{ showWatermark ? '🏷️ Snapify tag' : '🚫 No tag' }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- ══ IOS SEGMENTED CONTROL TABS ══ -->
@@ -307,7 +378,7 @@
         <button 
           class="segment-btn" 
           :class="{ active: activeTab === 'stickers' }" 
-          @click="activeTab = 'stickers'"
+          @click="activeTab = 'sticker'"
         >
           <SmileIcon :size="13" />
           <span>Stickers</span>
@@ -340,16 +411,105 @@
             :class="['ft-' + fr.id, { active: selectedFrame === fr.id }]"
             @click="pick('frame', fr.id)"
           >
-            <div class="ft-preview" :style="{ background: fr.bg }">
-              <div class="ft-inner" :style="{ borderColor: fr.border || 'rgba(0,0,0,0.12)' }"></div>
+            <div
+              class="ft-preview"
+              :style="fr.thumb
+                ? { backgroundImage: `url(${fr.thumb})`, backgroundSize: 'cover', backgroundPosition: 'center top' }
+                : { background: fr.bg }"
+            >
+              <div v-if="!fr.thumb" class="ft-inner" :style="{ borderColor: fr.border || 'rgba(0,0,0,0.12)' }"></div>
             </div>
             <span class="ft-name">{{ fr.label }}</span>
           </button>
         </div>
+        
+        <!-- ── Custom Template Builder ── -->
+        <div v-if="selectedFrame === 'custom_tpl'" class="custom-tpl-builder">
+          <div class="ctb-row">
+            <div class="ctb-section" style="flex:2">
+              <label class="ctb-label">Title Text</label>
+              <input type="text" v-model="customTplTitle" class="ctb-input" placeholder="Happy 1st Anniversary" />
+            </div>
+            <div class="ctb-section" style="flex:1">
+              <label class="ctb-label">Font</label>
+              <select v-model="customTplFont" class="ctb-input" style="padding: 7px 5px;">
+                <option value="Inter">Inter</option>
+                <option value="Caveat">Caveat</option>
+                <option value="Playfair Display">Playfair</option>
+                <option value="Oswald">Oswald</option>
+                <option value="Dancing Script">Dancing</option>
+              </select>
+            </div>
+          </div>
+          <div class="ctb-row" style="margin-top: -6px;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:0.75rem; cursor:pointer;">
+              <input type="checkbox" v-model="customTplShowLogo" />
+              Show Logo (Bottom Right)
+            </label>
+          </div>
+          <div class="ctb-row">
+            <div class="ctb-section">
+              <label class="ctb-label">Background</label>
+              <input type="color" v-model="customTplBg" class="ctb-color" />
+            </div>
+            <div class="ctb-section">
+              <label class="ctb-label">Border</label>
+              <input type="color" v-model="customTplBorder" class="ctb-color" />
+            </div>
+            <div class="ctb-section">
+              <label class="ctb-label">Text</label>
+              <input type="color" v-model="customTplTextColor" class="ctb-color" />
+            </div>
+          </div>
+          <div class="ctb-section">
+            <label class="ctb-label">Layout</label>
+            <div class="ctb-layout-row">
+              <button
+                v-for="l in [
+                  { id: 'strip', label: 'Strip', desc: '3 stacked' },
+                  { id: 'wide',  label: 'Wide',  desc: '1 + 2 side' },
+                  { id: 'quad',  label: 'Grid',  desc: '2 × 2' },
+                ]"
+                :key="l.id"
+                class="ctb-layout-btn"
+                :class="{ active: customTplLayout === l.id }"
+                @click="customTplLayout = l.id; pick('layout', l.id === 'quad' ? 4 : 3)"
+              >
+                <div class="ctb-layout-icon" :class="'ctb-icon-' + l.id">
+                  <span v-if="l.id === 'strip'"><span v-for="n in 3" :key="n" class="ctb-slot ctb-slot-h"></span></span>
+                  <span v-else-if="l.id === 'wide'" style="display:flex;gap:2px;width:100%">
+                    <span class="ctb-slot ctb-slot-tall"></span>
+                    <span style="display:flex;flex-direction:column;gap:2px;flex:1">
+                      <span class="ctb-slot ctb-slot-sm"></span>
+                      <span class="ctb-slot ctb-slot-sm"></span>
+                    </span>
+                  </span>
+                  <span v-else style="display:grid;grid-template-columns:1fr 1fr;gap:2px;width:100%">
+                    <span v-for="n in 4" :key="n" class="ctb-slot"></span>
+                  </span>
+                </div>
+                <span class="ctb-layout-name">{{ l.label }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ══ TAB 3: STICKERS ══ -->
-      <div v-if="activeTab === 'stickers'" class="style-section sticker-customizer-section">
+      <div v-if="activeTab === 'sticker'" class="style-section sticker-section">
+        <!-- Text Sticker Adder -->
+        <div class="text-sticker-adder">
+          <input type="text" v-model="newText" placeholder="Type your text..." class="text-input" />
+          <div class="text-adder-row">
+            <input type="color" v-model="newTextColor" title="Text Color" class="color-picker-small" />
+            <select v-model="newTextFont" class="font-select">
+              <option value="Inter">Inter (Modern)</option>
+              <option value="Caveat">Caveat (Handwritten)</option>
+              <option value="Playfair Display">Playfair (Elegant)</option>
+            </select>
+            <button @click="addTextSticker" class="add-text-btn">+ Add Text</button>
+          </div>
+        </div>
         <div class="stickers-grid">
           <button 
             v-for="st in availableStickers" 
@@ -359,8 +519,6 @@
           >
             <div class="sticker-btn-preview">
               <span v-if="st.type === 'emoji'" class="emoji-preview">{{ st.src }}</span>
-              <img v-else-if="st.id === 'logo_fan1'" src="/logo_fan1.png" alt="CWSI Logo Fan" @error="(e) => e.target.src = '/logo.png'" />
-              <img v-else-if="st.id === 'logo_fan2'" src="/logo_fan2.png" alt="I ❤️ CWSI" @error="(e) => e.target.src = '/logo.png'" />
             </div>
             <span class="sticker-picker-label">{{ st.label }}</span>
           </button>
@@ -449,11 +607,34 @@
                 </div>
                 <div class="slot-track">
                   <div class="strip-slide" :class="{ 'strip-out': stripSliding }">
-                    <!-- THE ACTUAL STRIP — this is what gets captured for download/print -->
+                    <!-- THE ACTUAL STRIP — matches preview exactly -->
+                    <!-- Template preset strip (anniversary etc) -->
+                    <template v-if="selectedTemplatePreset">
+                      <div
+                        class="strip-card template-strip"
+                        ref="photoStripRef"
+                        :class="['strip-bg-' + selectedFrame, { 'anniversary-card': selectedFrame === 'anniversary' }]"
+                        :style="stripBgStyle"
+                      >
+                        <div class="template-photos-layer">
+                          <div
+                            v-for="(snap, i) in snaps"
+                            :key="i"
+                            class="template-photo-slot"
+                            :style="templateSlotStyle(i)"
+                          >
+                            <img :src="snap" class="template-photo-img" :class="filterClass" />
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Standard strip -->
+                    <template v-else>
                     <div
                       class="strip-card"
                       ref="photoStripRef"
-                      :class="'strip-bg-' + selectedFrame"
+                      :class="['strip-bg-' + selectedFrame, selectedFrame === 'anniversary' ? 'anniversary-card' : '']"
                       :style="stripBgStyle"
                     >
                       <!-- Frame header (One Piece banner etc) -->
@@ -462,23 +643,18 @@
                         <span>ONE PIECE</span>
                         <AnchorIcon :size="14" />
                       </div>
-                      <!-- CWSI header -->
-                      <div v-if="selectedFrame === 'cwsi'" class="cwsi-header">
-                        <img src="/logo.png" class="cwsi-logo" alt="CWSI Logo" />
-                        <div class="cwsi-title">CORDOVA WATER SYSTEM INC.</div>
-                        <div class="cwsi-wave-bar"><span v-for="n in 3" :key="n"></span></div>
-                      </div>
+
                       <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr">
                         <span v-for="n in 5" :key="n" class="vspr"></span>
                       </div>
 
                       <!-- Photos -->
-                      <div class="photos-area">
+                      <div class="photos-area" :class="{ 'collage-grid': selectedFrame === 'collage', ['collage-' + selectedLayout]: selectedFrame === 'collage', 'anniversary-layout': selectedFrame === 'anniversary' }">
                         <div
                           v-for="(snap, i) in snaps"
                           :key="i"
                           class="strip-photo-wrap"
-                          :class="'border-' + selectedFrame"
+                          :class="'border-' + selectedFrame" :style="selectedFrame === 'custom' ? { outline: '2px solid ' + customBorderColor } : {}"
                         >
                           <img :src="snap" class="strip-photo" :class="filterClass" />
                           <!-- One Piece overlay label -->
@@ -493,16 +669,17 @@
                         </div>
                       </div>
 
+                      <!-- Anniversary custom text -->
+                      <div class="anniversary-footer" v-if="selectedFrame === 'anniversary'">
+                        <span>{{ customText }}</span>
+                      </div>
+                      
                       <!-- Strip footer / watermark -->
-                      <div class="strip-footer" :class="'footer-' + selectedFrame">
+                      <div class="strip-footer" :class="'footer-' + selectedFrame" v-if="(showWatermark && selectedFrame !== 'anniversary') || selectedFrame === 'onepiece'">
                         <div v-if="selectedFrame === 'onepiece'" class="op-footer">
                           <ZapIcon :size="10" />
                           <span>Snapify · {{ timestamp }}</span>
                           <SwordIcon :size="10" />
-                        </div>
-                        <div v-else-if="selectedFrame === 'cwsi'" class="cwsi-footer">
-                          <img src="/logo.png" class="cwsi-footer-logo" alt="CWSI" />
-                          <span>CORDOVA WATER SYSTEM INC.</span>
                         </div>
                         <div v-else class="default-footer">Snapify · {{ timestamp }}</div>
                       </div>
@@ -512,6 +689,7 @@
                         <span v-for="n in 5" :key="n" class="vspr"></span>
                       </div>
                     </div>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -549,63 +727,6 @@
           <div class="strip-preview-container" style="margin-top:12px; text-align:center;">
         <img id="strip-preview-img" alt="Strip preview" style="max-width:100%; border:1px solid #ccc; border-radius:6px;" />
       </div>
-          <div class="modal-strip-wrap">
-            <div class="modal-strip" :class="'strip-bg-' + selectedFrame" :style="stripBgStyle">
-              <!-- One Piece header -->
-              <div v-if="selectedFrame === 'onepiece'" class="op-header op-header-lg">
-                <AnchorIcon :size="16" /><span>ONE PIECE</span><AnchorIcon :size="16" />
-              </div>
-              <!-- CWSI header -->
-              <div v-if="selectedFrame === 'cwsi'" class="cwsi-header cwsi-header-lg">
-                <img src="/logo.png" class="cwsi-logo-lg" alt="CWSI Logo" />
-                <div class="cwsi-title-lg">CORDOVA WATER SYSTEM INC.</div>
-                <div class="cwsi-wave-bar"><span v-for="n in 3" :key="n"></span></div>
-              </div>
-              <!-- Vintage sprockets top -->
-              <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr">
-                <span v-for="n in 6" :key="n" class="vspr"></span>
-              </div>
-              <!-- Photos -->
-              <div class="modal-photos-area">
-                <div
-                  v-for="(snap, i) in snaps"
-                  :key="i"
-                  class="modal-photo-wrap"
-                  :class="'border-' + selectedFrame"
-                >
-                  <img :src="snap" class="modal-photo" :class="filterClass" />
-                  <div v-if="selectedFrame === 'onepiece'" class="op-photo-badge-lg">
-                    {{ opLabels[i % opLabels.length] }}
-                  </div>
-                  <template v-if="selectedFrame === 'floral'">
-                    <FlowerIcon class="sc sc-tl" :size="12" />
-                    <FlowerIcon class="sc sc-tr" :size="12" />
-                  </template>
-                  <template v-if="selectedFrame === 'hearts'">
-                    <HeartIcon class="sc sc-tl" :size="11" style="color: #f4a4c8" />
-                    <HeartIcon class="sc sc-tr" :size="11" style="color: #f4a4c8" />
-                  </template>
-                </div>
-              </div>
-              <!-- Vintage sprockets bottom -->
-              <div v-if="selectedFrame === 'vintage'" class="vt-sprockets strip-spr-bot">
-                <span v-for="n in 6" :key="n" class="vspr"></span>
-              </div>
-              <!-- Footer watermark -->
-              <div class="modal-strip-footer" :class="'footer-' + selectedFrame">
-                <div v-if="selectedFrame === 'onepiece'" class="op-footer">
-                  <ZapIcon :size="11" /><span>Snapify · {{ timestamp }}</span
-                  ><SwordIcon :size="11" />
-                </div>
-                <div v-else-if="selectedFrame === 'cwsi'" class="cwsi-footer cwsi-footer-lg">
-                  <img src="/logo.png" class="cwsi-footer-logo" alt="CWSI" />
-                  <span>CORDOVA WATER SYSTEM INC.</span>
-                </div>
-                <div v-else class="default-footer">Snapify · {{ timestamp }}</div>
-              </div>
-            </div>
-          </div>
-
           <!-- Action buttons -->
           <div class="modal-actions">
             <button class="ma-btn primary" @click="doDownload" id="modal-download-btn">
@@ -641,13 +762,13 @@
           <p class="review-subtitle">Click any photo to retake it</p>
 
           <div class="review-strip-wrap">
-            <div class="review-strip" :class="'strip-bg-' + selectedFrame" :style="stripBgStyle">
+            <div class="review-strip" :class="['strip-bg-' + selectedFrame, selectedFrame === 'anniversary' ? 'anniversary-card' : '']" :style="stripBgStyle">
               <div class="review-grid-v">
                 <div
                   v-for="(snap, i) in snaps"
                   :key="i"
                   class="review-item-v"
-                  :class="'border-' + selectedFrame"
+                  :class="'border-' + selectedFrame" :style="selectedFrame === 'custom' ? { outline: '2px solid ' + customBorderColor } : {}"
                   @click="doRetakePose(i)"
                 >
                   <img :src="snap" class="review-img-v" :class="filterClass" />
@@ -712,12 +833,20 @@ const SailboatIcon = {
 
 // ── State ──────────────────────────────────────────────────
 const modalOpen = ref(false)
+const gifGenerating = ref(false)
 
-const openModal = () => {
+const openModal = async () => {
   playClick()
   modalOpen.value = true
-  // Prevent body scroll while modal open
   document.body.style.overflow = 'hidden'
+  await nextTick()
+  try {
+    const canvas = await generateStripCanvas(2)
+    const img = document.getElementById('strip-preview-img')
+    if (img) img.src = canvas.toDataURL('image/png')
+  } catch (e) {
+    console.error(e)
+  }
 }
 
 const closeModal = () => {
@@ -753,6 +882,8 @@ const selectedLayout = ref(4)
 const countdownSeconds = ref(3)
 const selectedFilter = ref('none')
 const selectedFrame = ref('classic')
+const customText = ref('Happy 1st anniversary')
+const showWatermark = ref(true)
 
 // ── Step labels ────────────────────────────────────────────
 const steps = [
@@ -777,21 +908,59 @@ const filters = [
 
 // ── Frames — each has id, label, bg (strip background), border color ──
 const frames = [
-  { id: 'classic', label: 'Classic', bg: '#ffffff', border: '#e8e0d8' },
-  { id: 'cwsi', label: 'CWSI', bg: '#ffffff', border: '#000000' },
-  { id: 'vintage', label: 'Film', bg: '#1a1210', border: '#554030' },
-  { id: 'floral', label: 'Floral', bg: '#fde8f2', border: '#f4b8cc' },
-  { id: 'pastel', label: 'Pastel', bg: '#e8f4fc', border: '#bcd8ef' },
-  { id: 'minimal', label: 'Minimal', bg: '#fafafa', border: '#222222' },
-  { id: 'hearts', label: 'Hearts', bg: '#fce4f0', border: '#f4a4c8' },
+  { id: 'classic',  label: 'Classic',   bg: '#ffffff', border: '#e8e0d8' },
+  { id: 'vintage',  label: 'Film',      bg: '#1a1210', border: '#554030' },
+  { id: 'floral',   label: 'Floral',   bg: '#fde8f2', border: '#f4b8cc' },
+  { id: 'pastel',   label: 'Pastel',   bg: '#e8f4fc', border: '#bcd8ef' },
+  { id: 'minimal',  label: 'Minimal',  bg: '#fafafa', border: '#222222' },
+  { id: 'hearts',   label: 'Hearts',   bg: '#fce4f0', border: '#f4a4c8' },
   { id: 'onepiece', label: 'One Piece', bg: '#1a3a6e', border: '#e8a020' },
+  { id: 'custom_tpl', label: 'Custom', bg: '#ffffff', border: '#1a458b' },
 ]
+
+const TEMPLATE_PRESETS = {
+  // No image-based presets any more — custom_tpl uses CSS only
+}
+
+const selectedTemplatePreset = computed(() => {
+  const preset = TEMPLATE_PRESETS[selectedFrame.value]
+  // custom_tpl uses pure CSS layout handled in template section
+  if (['anniversary', 'custom_tpl'].includes(selectedFrame.value)) return null
+  return preset || null
+})
 
 // Computed strip background style (for the strip card)
 const stripBgStyle = computed(() => {
   const fr = frames.find((f) => f.id === selectedFrame.value)
+  if (selectedFrame.value === 'custom_tpl') {
+    return { background: customTplBg.value }
+  }
+  if (selectedFrame.value === 'custom') {
+    return { background: customBgColor.value }
+  }
+  if (selectedTemplatePreset.value) {
+    const preset = selectedTemplatePreset.value
+    const style = { aspectRatio: `${preset.width} / ${preset.height}`, position: 'relative' }
+    style.background = preset.fallbackBg || '#e6f0fa'
+    return style
+  }
   return { background: fr ? fr.bg : '#ffffff' }
 })
+
+const templateSlotStyle = (index) => {
+  const preset = selectedTemplatePreset.value
+  if (!preset) return {}
+  const slot = preset.slots[index]
+  if (!slot) return {}
+  return {
+    left: `${(slot.x / preset.width) * 100}%`,
+    top: `${(slot.y / preset.height) * 100}%`,
+    width: `${(slot.w / preset.width) * 100}%`,
+    height: `${(slot.h / preset.height) * 100}%`,
+    transform: `rotate(${slot.rotate || 0}deg)`,
+    transformOrigin: 'center center',
+  }
+}
 
 const filterClass = computed(
   () =>
@@ -842,6 +1011,34 @@ const playShutter = () => {
 
 // ── Stickers State & Customization ──────────────────────────
 const activeTab = ref('filter')
+
+
+// ── Custom Template Builder ───────────────────────────────
+const customTplTitle = ref('Happy 1st Anniversary')
+const customTplBg = ref('#e8f4fc')
+const customTplBorder = ref('#1a458b')
+const customTplTextColor = ref('#1a458b')
+const customTplLayout = ref('wide') // 'strip' | 'wide' | 'quad'
+const customTplShowLogo = ref(true)
+const customTplFont = ref('Inter')
+
+// Advanced Features State
+const customBgColor = ref('#ffffff')
+const customBorderColor = ref('#222222')
+const photoTransforms = ref([]) // array of { zoom: 1, panX: 0, panY: 0 }
+const showCropModal = ref(false)
+const editingPhotoIndex = ref(null)
+const tempTransform = ref({ zoom: 1, panX: 0, panY: 0 })
+
+// Initialize photoTransforms when snaps change
+watch(snaps, (newSnaps) => {
+  if (newSnaps.length > photoTransforms.value.length) {
+    for (let i = photoTransforms.value.length; i < newSnaps.length; i++) {
+      photoTransforms.value.push({ zoom: 1, panX: 0, panY: 0 })
+    }
+  }
+}, { deep: true })
+
 const activeStickers = ref([])
 const selectedStickerIndex = ref(null)
 const draggingIndex = ref(null)
@@ -854,8 +1051,7 @@ let startStickerY = 0
 const previewCardRef = ref(null)
 
 const availableStickers = [
-  { id: 'logo_fan1', label: 'CWSI Logo Fan', type: 'image', src: '/logo_fan1.png' },
-  { id: 'logo_fan2', label: 'I ❤️ CWSI Fan', type: 'image', src: '/logo_fan2.png' },
+
   { id: 'drop', label: '💧 Water Drop', type: 'emoji', src: '💧' },
   { id: 'sparkles', label: '✨ Sparkles', type: 'emoji', src: '✨' },
   { id: 'heart', label: '❤️ Heart', type: 'emoji', src: '❤️' },
@@ -980,12 +1176,23 @@ const pick = (type, val) => {
   if (type === 'timer') {
     countdownSeconds.value = val
   }
+  if (type === 'frame') {
+    // Reset layout to safe default when switching frames
+    const tplFrames = ['custom_tpl']
+    if (tplFrames.includes(val)) {
+      selectedLayout.value = 3
+    } else if (selectedLayout.value > 4) {
+      selectedLayout.value = 3
+    }
+  }
   if (type === 'filter') {
     selectedFilter.value = val
     appStep.value = Math.max(appStep.value, 2)
   }
   if (type === 'frame') {
     selectedFrame.value = val
+    const preset = TEMPLATE_PRESETS[val]
+    if (preset?.forceLayout) selectedLayout.value = preset.forceLayout
     appStep.value = Math.max(appStep.value, 2)
   }
 }
@@ -1277,6 +1484,18 @@ const doConfirmReview = async () => {
   deliverySectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' })
 }
 
+
+const openCropModal = (index) => {
+  editingPhotoIndex.value = index
+  tempTransform.value = { ...photoTransforms.value[index] }
+  showCropModal.value = true
+}
+
+const saveCrop = () => {
+  photoTransforms.value[editingPhotoIndex.value] = { ...tempTransform.value }
+  showCropModal.value = false
+}
+
 const doRetake = () => {
   playClick()
   closeModal() // close modal if open
@@ -1297,12 +1516,16 @@ const doRetake = () => {
 const FRAME_BG = {
   classic: '#ffffff',
   cwsi: '#ffffff',
+  cwsi_anniversary: '#e6f0fa',
+  memories: '#6c5953',
+  film_love: '#f7f3eb',
   vintage: '#1a1210',
   floral: '#fde8f2',
   pastel: '#e8f4fc',
   minimal: '#fafafa',
   hearts: '#ffccd5',
   onepiece: '#1a3a6e',
+  collage: '#111111',
 }
 const FILTER_CSS = {
   none: '',
@@ -1435,8 +1658,7 @@ async function drawFallbackSticker(ctx, id, size) {
   ctx.fill()
   ctx.stroke()
   
-  if (id.includes('logo_fan1')) {
-    // Cordova logo themed fan
+  if (false) {
     // Blue inner crest
     ctx.fillStyle = '#e8f4fd'
     ctx.beginPath()
@@ -1491,10 +1713,436 @@ async function drawFallbackSticker(ctx, id, size) {
   ctx.restore()
 }
 
+// Draw image with center-crop into a destination rect
+function drawCoverImage(ctx, img, dx, dy, dw, dh) {
+  const srcRatio = img.naturalWidth / img.naturalHeight
+  const dstRatio = dw / dh
+  let sx = 0
+  let sy = 0
+  let sw = img.naturalWidth
+  let sh = img.naturalHeight
+  if (srcRatio > dstRatio) {
+    sh = img.naturalHeight
+    sw = sh * dstRatio
+    sx = (img.naturalWidth - sw) / 2
+  } else {
+    sw = img.naturalWidth
+    sh = sw / dstRatio
+    sy = (img.naturalHeight - sh) / 2
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
+}
+
 const generateStripCanvas = async (scale = 3) => {
   const frame = selectedFrame.value
   const filter = FILTER_CSS[selectedFilter.value] || ''
   const photos = snaps.value
+
+  // Full-template presets with fixed slot coordinates
+  if (TEMPLATE_PRESETS[frame]) {
+    const preset = TEMPLATE_PRESETS[frame]
+    const templateImg = await loadImage(preset.image)
+    const TW = templateImg?.naturalWidth || preset.width
+    const TH = templateImg?.naturalHeight || preset.height
+
+    const c = document.createElement('canvas')
+    c.width = TW * scale
+    c.height = TH * scale
+    const ctx = c.getContext('2d')
+    ctx.scale(scale, scale)
+
+    if (templateImg) ctx.drawImage(templateImg, 0, 0, TW, TH)
+    else {
+      ctx.fillStyle = preset.fallbackBg
+      ctx.fillRect(0, 0, TW, TH)
+    }
+
+    const imgs = await Promise.all(photos.map((src) => loadFiltered(src, filter)))
+    for (let i = 0; i < imgs.length; i++) {
+      const slot = preset.slots[i]
+      if (!slot) continue
+      const sx = (slot.x / preset.width) * TW
+      const sy = (slot.y / preset.height) * TH
+      const sw = (slot.w / preset.width) * TW
+      const sh = (slot.h / preset.height) * TH
+      ctx.save()
+      ctx.translate(sx + sw / 2, sy + sh / 2)
+      ctx.rotate(((slot.rotate || 0) * Math.PI) / 180)
+      ctx.beginPath()
+      // Rounded clip to match UI preview border-radius
+      ctx.roundRect(-sw / 2, -sh / 2, sw, sh, 8)
+      ctx.clip()
+      drawCoverImage(ctx, imgs[i], -sw / 2, -sh / 2, sw, sh)
+      ctx.restore()
+    }
+
+    for (const sticker of activeStickers.value) {
+      ctx.save()
+      const tx = sticker.x * TW
+      const ty = sticker.y * TH
+      ctx.translate(tx, ty)
+      ctx.rotate((sticker.rotation * Math.PI) / 180)
+      const size = 48 * sticker.scale
+      if (sticker.type === 'image') {
+        const img = await loadImage(sticker.src)
+        if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size)
+        else await drawFallbackSticker(ctx, sticker.id, size)
+      } else if (sticker.type === 'text') {
+        ctx.font = `${size}px "${sticker.font}", system-ui`
+        ctx.fillStyle = sticker.color
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(sticker.text, 0, 0)
+      } else if (sticker.type === 'text') {
+        ctx.font = `${size}px "${sticker.font}", system-ui`
+        ctx.fillStyle = sticker.color
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(sticker.text, 0, 0)
+      } else if (sticker.type === 'emoji') {
+        ctx.font = `${size}px system-ui`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(sticker.src, 0, 0)
+      }
+      ctx.restore()
+    }
+
+    return c
+  }
+
+
+  // ── Anniversary frame: custom grid-based canvas ─────────────────────
+  if (frame === 'anniversary') {
+    const TW = 600
+    const TH = 760
+    
+    const c = document.createElement('canvas')
+    c.width = TW * scale
+    c.height = TH * scale
+    const ctx = c.getContext('2d')
+    ctx.scale(scale, scale)
+
+    // Background gradient for anniversary
+    const grad = ctx.createLinearGradient(0, 0, 0, TH)
+    grad.addColorStop(0, '#e8f4fc')
+    grad.addColorStop(1, '#d0e6f7')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, TW, TH)
+
+    // Cloud-like decorations
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
+    ctx.beginPath()
+    ctx.arc(60, 40, 50, 0, Math.PI * 2)
+    ctx.arc(140, 60, 60, 0, Math.PI * 2)
+    ctx.arc(TW - 80, 20, 80, 0, Math.PI * 2)
+    ctx.arc(TW - 20, 80, 50, 0, Math.PI * 2)
+    ctx.fill()
+
+    const imgs = await Promise.all(photos.map((src) => loadFiltered(src, filter)))
+    
+    // Layout logic: left big photo, two right small photos
+    const GAP = 16
+    const PAD = 30
+    
+    const rightColW = 240
+    const leftColW = TW - PAD * 2 - GAP - rightColW
+    
+    const totalPhotoH = TH - PAD - 100 // leave 100px for text
+    const rightColH = (totalPhotoH - GAP) / 2
+    
+    const slots = [
+      { x: PAD, y: PAD, w: leftColW, h: totalPhotoH },
+      { x: PAD + leftColW + GAP, y: PAD, w: rightColW, h: rightColH },
+      { x: PAD + leftColW + GAP, y: PAD + rightColH + GAP, w: rightColW, h: rightColH },
+    ]
+    
+    for (let i = 0; i < imgs.length; i++) {
+      const img = imgs[i]
+      if (!img) continue
+      const slot = slots[i % 3] 
+      
+      // Draw white border (simulated by box-shadow in css)
+      ctx.fillStyle = '#fff'
+      ctx.beginPath()
+      ctx.roundRect(slot.x - 4, slot.y - 4, slot.w + 8, slot.h + 8, 10)
+      ctx.fill()
+      
+      // Draw shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.1)'
+      ctx.shadowBlur = 8
+      ctx.shadowOffsetY = 2
+      ctx.beginPath()
+      ctx.roundRect(slot.x, slot.y, slot.w, slot.h, 6)
+      ctx.fill()
+      ctx.shadowColor = 'transparent'
+      
+      // Draw image
+      ctx.save()
+      ctx.beginPath()
+      ctx.roundRect(slot.x, slot.y, slot.w, slot.h, 6)
+      ctx.clip()
+      drawCoverImage(ctx, img, slot.x, slot.y, slot.w, slot.h, i)
+      ctx.restore()
+    }
+    
+    // Text at bottom
+    ctx.fillStyle = '#1a458b'
+    ctx.font = 'bold 38px "Playfair Display", Georgia, serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(customText.value, TW / 2, TH - 36)
+
+    // Stickers
+    for (const sticker of activeStickers.value) {
+      ctx.save()
+      const tx = sticker.x * TW
+      const ty = sticker.y * TH
+      ctx.translate(tx, ty)
+      ctx.rotate((sticker.rotation * Math.PI) / 180)
+      const size = 48 * sticker.scale
+      if (sticker.type === 'image') {
+        const img = await loadImage(sticker.src)
+        if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size)
+      } else if (sticker.type === 'emoji') {
+        ctx.font = `${size}px system-ui`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(sticker.src, 0, 0)
+      }
+      ctx.restore()
+    }
+
+    return c
+  }
+
+  
+  // ── Custom Template Builder: Canvas Generation ─────────────────────
+  if (frame === 'custom_tpl') {
+    const layout = customTplLayout.value
+    // Base dimensions similar to wide/grid strips
+    const SW_C = 800
+    const SH_C = layout === 'strip' ? 1200 : 700
+    const PAD = 24
+    
+    const c = document.createElement('canvas')
+    c.width = SW_C * scale
+    c.height = SH_C * scale
+    const ctx = c.getContext('2d')
+    ctx.scale(scale, scale)
+
+    // Background
+    ctx.fillStyle = customTplBg.value || '#e8f4fc'
+    ctx.fillRect(0, 0, SW_C, SH_C)
+
+    // Title Header
+    const titleText = customTplTitle.value || 'Happy 1st Anniversary'
+    ctx.fillStyle = customTplTextColor.value || '#1a458b'
+    ctx.font = `bold 32px "${customTplFont.value || 'Inter'}", sans-serif`
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    ctx.fillText(titleText, PAD, PAD)
+
+    // Divider Line
+    ctx.beginPath()
+    ctx.moveTo(PAD, PAD + 45)
+    ctx.lineTo(SW_C - PAD, PAD + 45)
+    ctx.strokeStyle = customTplBorder.value || '#1a458b'
+    ctx.lineWidth = 4
+    ctx.stroke()
+
+    // Logo (if enabled)
+    if (customTplShowLogo.value) {
+      const logoImg = await loadImage('/logo.png')
+      if (logoImg) {
+        const logoH = 50
+        const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH
+        ctx.drawImage(logoImg, SW_C - PAD - logoW, SH_C - PAD - logoH, logoW, logoH)
+      }
+    }
+
+    // Load images
+    const imgs = await Promise.all(photos.map((src) => loadFiltered(src, filter)))
+
+    // Layout engine for photos
+    const startY = PAD + 70
+    const areaW = SW_C - (PAD * 2)
+    const areaH = SH_C - startY - (PAD * 2) - (customTplShowLogo.value && layout !== 'strip' ? 40 : 0)
+    
+    const drawSlot = (imgIndex, x, y, w, h) => {
+      if (imgIndex >= imgs.length || !imgs[imgIndex]) return
+      
+      // Draw border
+      ctx.fillStyle = customTplBorder.value || '#1a458b'
+      ctx.fillRect(x - 4, y - 4, w + 8, h + 8)
+      
+      // Draw image
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(x, y, w, h)
+      ctx.clip()
+      
+      const t = photoTransforms.value[imgIndex] || { zoom: 1, panX: 0, panY: 0 };
+      const z = t.zoom;
+      
+      const srcRatio = imgs[imgIndex].naturalWidth / imgs[imgIndex].naturalHeight
+      const dstRatio = w / h
+      let sx = 0, sy = 0, sw = imgs[imgIndex].naturalWidth, sh = imgs[imgIndex].naturalHeight
+      if (srcRatio > dstRatio) {
+        sh = imgs[imgIndex].naturalHeight
+        sw = sh * dstRatio
+        sx = (imgs[imgIndex].naturalWidth - sw) / 2
+      } else {
+        sw = imgs[imgIndex].naturalWidth
+        sh = sw / dstRatio
+        sy = (imgs[imgIndex].naturalHeight - sh) / 2
+      }
+      
+      const cropW = sw / z;
+      const cropH = sh / z;
+      const shiftX = (t.panX / 100) * (sw - cropW);
+      const shiftY = (t.panY / 100) * (sh - cropH);
+      const cx_src = sx + sw/2 - shiftX;
+      const cy_src = sy + sh/2 - shiftY;
+      
+      ctx.drawImage(imgs[imgIndex], cx_src - cropW/2, cy_src - cropH/2, cropW, cropH, x, y, w, h);
+      ctx.restore()
+    }
+
+    if (layout === 'strip') {
+      const GAP = 20
+      const photoH = (areaH - (GAP * 2)) / 3
+      const photoW = photoH * (4/3)
+      const px = PAD + (areaW - photoW) / 2
+      drawSlot(0, px, startY, photoW, photoH)
+      drawSlot(1, px, startY + photoH + GAP, photoW, photoH)
+      drawSlot(2, px, startY + (photoH * 2) + (GAP * 2), photoW, photoH)
+    } 
+    else if (layout === 'wide') {
+      const GAP = 16
+      // Left big photo
+      const bigW = (areaW - GAP) * 0.55
+      const bigH = areaH
+      // Right small photos
+      const smallW = areaW - bigW - GAP
+      const smallH = (areaH - GAP) / 2
+      
+      drawSlot(0, PAD, startY, bigW, bigH)
+      drawSlot(1, PAD + bigW + GAP, startY, smallW, smallH)
+      drawSlot(2, PAD + bigW + GAP, startY + smallH + GAP, smallW, smallH)
+    }
+    else if (layout === 'quad') {
+      const GAP = 16
+      const pw = (areaW - GAP) / 2
+      const ph = (areaH - GAP) / 2
+      drawSlot(0, PAD, startY, pw, ph)
+      drawSlot(1, PAD + pw + GAP, startY, pw, ph)
+      drawSlot(2, PAD, startY + ph + GAP, pw, ph)
+      drawSlot(3, PAD + pw + GAP, startY + ph + GAP, pw, ph)
+    }
+
+    // Draw stickers
+    for (const sticker of activeStickers.value) {
+      ctx.save()
+      const tx = sticker.x * SW_C
+      const ty = sticker.y * SH_C
+      ctx.translate(tx, ty)
+      ctx.rotate((sticker.rotation * Math.PI) / 180)
+      const size = 48 * sticker.scale
+      if (sticker.type === 'image') {
+        const img = await loadImage(sticker.src)
+        if (img) ctx.drawImage(img, -size / 2, -size / 2, size, size)
+      } else if (sticker.type === 'text') {
+        ctx.font = `${size}px "${sticker.font}", system-ui`
+        ctx.fillStyle = sticker.color
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(sticker.text, 0, 0)
+      } else if (sticker.type === 'emoji') {
+        ctx.font = `${size}px system-ui`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(sticker.src, 0, 0)
+      }
+      ctx.restore()
+    }
+
+    return c
+  }
+
+  // ── Collage frame: grid-based canvas ─────────────────────
+  if (frame === 'collage') {
+    const layout = Number(selectedLayout.value)
+    const CELL_W = 300
+    const CELL_H = Math.round((CELL_W * 3) / 4)
+    const GAP = 6
+    const PAD_C = 8
+    // Determine columns/rows
+    let cols, rows
+    if (layout === 2)      { cols = 2; rows = 1 }
+    else if (layout === 3) { cols = 2; rows = 2 }  // first cell spans 2 cols
+    else if (layout === 4) { cols = 2; rows = 2 }
+    else                   { cols = 3; rows = 2 }  // 6
+
+    const SW_C = PAD_C * 2 + cols * CELL_W + (cols - 1) * GAP
+    const SH_C = PAD_C * 2 + rows * CELL_H + (rows - 1) * GAP + (showWatermark.value ? 22 : 0)
+
+    const c = document.createElement('canvas')
+    c.width = SW_C * scale
+    c.height = SH_C * scale
+    const ctx = c.getContext('2d')
+    ctx.scale(scale, scale)
+
+    // Background
+    ctx.fillStyle = '#111111'
+    ctx.fillRect(0, 0, SW_C, SH_C)
+
+    // Load images with filter (B&W override for collage)
+    const bwFilter = 'grayscale(100%) contrast(110%)'
+    const imgs = await Promise.all(photos.map((src) => loadFiltered(src, filter || bwFilter)))
+
+    for (let i = 0; i < imgs.length; i++) {
+      const img = imgs[i]
+      if (!img) continue
+      let dx, dy, dw, dh
+      if (layout === 3 && i === 0) {
+        // First photo spans full width
+        dx = PAD_C
+        dy = PAD_C
+        dw = cols * CELL_W + (cols - 1) * GAP
+        dh = CELL_H
+      } else {
+        const adjustedI = layout === 3 ? i - 1 : i
+        const row = Math.floor(adjustedI / cols)
+        const col = adjustedI % cols
+        // For layout 3: row 0 is taken by the full-width photo, so subsequent photos start at row 1
+        const startY = layout === 3 ? PAD_C + CELL_H + GAP : PAD_C
+        dx = PAD_C + col * (CELL_W + GAP)
+        dy = startY + row * (CELL_H + GAP)
+        dw = CELL_W
+        dh = CELL_H
+      }
+      // White border
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)'
+      ctx.lineWidth = 2
+      ctx.strokeRect(dx - 1, dy - 1, dw + 2, dh + 2)
+      // Clip and draw
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(dx, dy, dw, dh)
+      ctx.clip()
+      drawCoverImage(ctx, img, dx, dy, dw, dh)
+      ctx.restore()
+    }
+
+    // Watermark
+    if (showWatermark.value) {
+      ctx.fillStyle = 'rgba(255,255,255,0.3)'
+      ctx.font = `italic ${9}px "Playfair Display", Georgia, serif`
+      ctx.textAlign = 'center'
+      ctx.fillText(`Snapify · ${timestamp.value}`, SW_C / 2, SH_C - 6)
+    }
+    return c
+  }
 
   // Strip dimensions (logical pixels, ×scale for HQ)
   const PW = 240 // photo width
@@ -1505,8 +2153,6 @@ const generateStripCanvas = async (scale = 3) => {
   const FTR = frame === 'cwsi' ? 40 : 0
   const SW = PW + PAD * 2
   const SH = HDR + SPRH + (PH + PAD) * photos.length + PAD + SPRH + FTR + 20
-
-
 
   const c = document.createElement('canvas')
   c.width = SW * scale
@@ -1527,57 +2173,20 @@ const generateStripCanvas = async (scale = 3) => {
   // 4. One Piece header
   if (frame === 'onepiece') {
     ctx.fillStyle = '#e8a020'
-    ctx.font = `bold ${10}px "DM Serif Display", serif`
+    ctx.font = `bold ${10}px "Caveat", serif`
     ctx.textAlign = 'center'
     ctx.fillText('⚓ ONE PIECE ⚓', SW / 2, HDR / 1.5)
     ctx.fillStyle = '#e8a020'
     ctx.fillRect(PAD, HDR - 3, SW - PAD * 2, 1.5)
   }
 
-  // 4b. CWSI header
-  if (frame === 'cwsi') {
-    // Blue gradient header bg
-    const hdrGrad = ctx.createLinearGradient(0, 0, 0, HDR)
-    hdrGrad.addColorStop(0, '#dceefb')
-    hdrGrad.addColorStop(1, '#ffffff')
-    ctx.fillStyle = hdrGrad
-    ctx.fillRect(0, 0, SW, HDR)
-
-    // Logo
-    const cwsiLogo = await loadImage('/logo.png')
-    if (cwsiLogo) {
-      const lw = 44, lh = (cwsiLogo.naturalHeight / cwsiLogo.naturalWidth) * lw
-      ctx.drawImage(cwsiLogo, (SW - lw) / 2, 4, lw, lh)
+    // 4b. CWSI custom banner
+    if (frame === 'cwsi') {
+      const bannerImg = await loadImage('/cwsi_banner.png')
+      if (bannerImg) {
+        ctx.drawImage(bannerImg, 0, 0, SW, HDR)
+      }
     }
-
-    // Title text
-    ctx.fillStyle = '#1b3a6e'
-    ctx.font = `bold ${8}px system-ui, sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillText('CORDOVA WATER SYSTEM INC.', SW / 2, HDR - 14)
-
-    // Wave decoration lines
-    const waveY = HDR - 8
-    const waves = [
-      { x: SW / 2 - 30, w: 20, color: '#1b6fb5' },
-      { x: SW / 2 - 8,  w: 16, color: '#63b3e8' },
-      { x: SW / 2 + 10, w: 20, color: '#1b6fb5' },
-    ]
-    waves.forEach(({ x, w, color }) => {
-      ctx.fillStyle = color
-      ctx.beginPath()
-      ctx.roundRect(x, waveY, w, 3, 2)
-      ctx.fill()
-    })
-
-    // Separator line
-    ctx.strokeStyle = '#1b6fb5'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(PAD, HDR - 2)
-    ctx.lineTo(SW - PAD, HDR - 2)
-    ctx.stroke()
-  }
 
   // 5. Load all images
   const imgs = await Promise.all(photos.map((src) => loadFiltered(src, filter)))
@@ -1619,11 +2228,26 @@ const generateStripCanvas = async (scale = 3) => {
     sh = sw / dstRatio
     sy = (img.naturalHeight - sh) / 2
   }
-  ctx.drawImage(img, sx, sy, sw, sh, PAD, y, PW, PH)
+  
+  const t = photoTransforms.value[i] || { zoom: 1, panX: 0, panY: 0 };
+  const z = t.zoom;
+  // Apply pan/zoom to source rectangle before drawing
+  const cropW = sw / z;
+  const cropH = sh / z;
+  // panX/panY from -100 to 100 roughly maps to shifting the center
+  const shiftX = (t.panX / 100) * (sw - cropW);
+  const shiftY = (t.panY / 100) * (sh - cropH);
+  
+  const cx_src = sx + sw/2 - shiftX;
+  const cy_src = sy + sh/2 - shiftY;
+  
+  ctx.drawImage(img, cx_src - cropW/2, cy_src - cropH/2, cropW, cropH, PAD, y, PW, PH);
+  
     ctx.restore()
 
     // Photo border
     const borderColors = {
+      custom: customBorderColor.value,
       classic: '#e0d8d0',
       vintage: '#554030',
       floral: '#f4b8cc',
@@ -1641,11 +2265,7 @@ const generateStripCanvas = async (scale = 3) => {
       ctx.stroke()
       ctx.restore()
     } else if (frame === 'cwsi') {
-      ctx.strokeStyle = '#1b6fb5'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.roundRect(PAD + 1, y + 1, PW - 2, PH - 2, 6)
-      ctx.stroke()
+      // No special border for cwsi; use default styling
     } else {
       ctx.strokeStyle = borderColors[frame] || '#e0d8d0'
       ctx.lineWidth = frame === 'minimal' ? 2.5 : 1.5
@@ -1656,60 +2276,24 @@ const generateStripCanvas = async (scale = 3) => {
   // 7. Vintage sprocket bottom
   if (frame === 'vintage') drawSprockets(ctx, SW, SH - SPRH / 2, 7)
 
-  // 7b. CWSI footer
+  // 7b. CWSI footer banner
   if (frame === 'cwsi') {
     const footerY = SH - FTR - 20
-    const ftrGrad = ctx.createLinearGradient(0, footerY, 0, SH)
-    ftrGrad.addColorStop(0, '#ffffff')
-    ftrGrad.addColorStop(1, '#dceefb')
-    ctx.fillStyle = ftrGrad
-    ctx.fillRect(0, footerY, SW, FTR + 20)
-
-    // Footer separator
-    ctx.strokeStyle = '#1b6fb5'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(PAD, footerY + 2)
-    ctx.lineTo(SW - PAD, footerY + 2)
-    ctx.stroke()
-
-    // Footer logo
-    const cwsiLogoF = await loadImage('/logo.png')
-    if (cwsiLogoF) {
-      const lw = 32, lh = (cwsiLogoF.naturalHeight / cwsiLogoF.naturalWidth) * lw
-      ctx.drawImage(cwsiLogoF, (SW - lw) / 2, footerY + 6, lw, lh)
+    const bannerFtr = await loadImage('/cwsi_banner.png')
+    if (bannerFtr) {
+      ctx.drawImage(bannerFtr, 0, footerY, SW, FTR + 20)
     }
-
-    // Footer text
-    ctx.fillStyle = '#1b3a6e'
-    ctx.font = `bold ${7}px system-ui, sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillText('CORDOVA WATER SYSTEM INC.', SW / 2, SH - 6)
-  }
-
-  // 7c. CWSI black cutting border (outermost)
-  if (frame === 'cwsi') {
-    ctx.strokeStyle = '#000000'
-    ctx.lineWidth = 0.5
-    ctx.strokeRect(0.25, 0.25, SW - 0.5, SH - 0.5)
   }
 
   // 8. Watermark
-  const wmDark = frame === 'vintage' || frame === 'onepiece'
-  ctx.fillStyle = wmDark ? 'rgba(255,255,255,0.4)' : 'rgba(90,50,30,0.45)'
-  ctx.font = `italic ${7}px "Playfair Display", Georgia, serif`
-  ctx.textAlign = 'center'
-  ctx.fillText(`Snapify · ${timestamp.value}`, SW / 2, SH - 6)
-
-  // Logo overlay (draw default logo if frame is classic or minimal)
-  if (frame === 'classic' || frame === 'minimal') {
-    const logoImg = await loadImage('/logo.png')
-    if (logoImg) {
-      const logoW = 80
-      const logoH = (logoImg.naturalHeight / logoImg.naturalWidth) * logoW
-      ctx.drawImage(logoImg, SW - logoW - 20, SH - logoH - 30, logoW, logoH)
-    }
+  if (showWatermark.value) {
+    const wmDark = frame === 'vintage' || frame === 'onepiece'
+    ctx.fillStyle = wmDark ? 'rgba(255,255,255,0.4)' : 'rgba(90,50,30,0.45)'
+    ctx.font = `italic ${7}px "Playfair Display", Georgia, serif`
+    ctx.textAlign = 'center'
+    ctx.fillText(`Snapify · ${timestamp.value}`, SW / 2, SH - 6)
   }
+
 
   // Draw active stickers (draggable & resizable)
   for (const sticker of activeStickers.value) {
@@ -1817,7 +2401,159 @@ const doPrint = async () => {
           .page{padding:0}
           .strip{box-shadow:none;width:170px;height:${Math.round(170 * aspect)}px}
         }
-      </style></head><body>
+      
+.crop-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.crop-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.crop-area {
+  width: 100%;
+  aspect-ratio: 4/3;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.crop-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.crop-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.crop-controls label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.crop-actions button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+}
+.crop-actions button.primary {
+  background: #d9385e;
+  color: #fff;
+  border: none;
+}
+.layout-btn.active {
+  opacity: 1 !important;
+  color: #d9385e;
+}
+
+
+/* Timelapse Button */
+.ma-btn.timelapse-btn {
+  background: linear-gradient(135deg, #7b2ff7, #4f8ef7);
+  color: #fff;
+  border-color: transparent;
+  gap: 6px;
+}
+.ma-btn.timelapse-btn:hover {
+  filter: brightness(1.1);
+}
+.ma-btn.timelapse-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Text Sticker Adder */
+.text-sticker-adder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px;
+  background: rgba(217, 56, 94, 0.04);
+  border-radius: 10px;
+  border: 1px dashed rgba(217, 56, 94, 0.2);
+}
+.text-sticker-adder .text-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(217, 56, 94, 0.25);
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+.text-sticker-adder .text-input:focus {
+  border-color: #d9385e;
+}
+.text-adder-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.color-picker-small {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1.5px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.font-select {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #ddd;
+  font-size: 0.82rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+.add-text-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #d9385e;
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: filter 0.15s;
+}
+.add-text-btn:hover {
+  filter: brightness(1.1);
+}
+
+/* Text sticker in overlay */
+.text-sticker {
+  font-weight: 700;
+  user-select: none;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+
+</style></head><body>
       <div class="page">
         <img class="strip" src="${dataUrl}" />
         <p class="wm">Snapify · ${timestamp.value}</p>
@@ -1832,6 +2568,240 @@ const doPrint = async () => {
     alert('Print failed.')
   }
 }
+
+
+const doTimelapse = async () => {
+  if (!snaps.value.length) return
+  playClick()
+  gifGenerating.value = true
+  
+  try {
+    // Load all images
+    const images = await Promise.all(snaps.value.map(src => {
+      return new Promise((resolve) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => resolve(img)
+        img.onerror = () => resolve(null)
+        img.src = src
+      })
+    }))
+
+    const W = 400
+    const H = 300
+    const FPS = 5
+    const DELAY = Math.round(100 / FPS) // in 1/100s units
+    
+    // Build a DataURL for each frame using canvas
+    const frameDataUrls = []
+    for (const img of images) {
+      if (!img) continue
+      const c = document.createElement('canvas')
+      c.width = W
+      c.height = H
+      const ctx = c.getContext('2d')
+      
+      // Draw background
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, W, H)
+      
+      // Center-crop image into frame
+      const srcRatio = img.naturalWidth / img.naturalHeight
+      const dstRatio = W / H
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight
+      if (srcRatio > dstRatio) {
+        sw = sh * dstRatio
+        sx = (img.naturalWidth - sw) / 2
+      } else {
+        sh = sw / dstRatio
+        sy = (img.naturalHeight - sh) / 2
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H)
+      
+      frameDataUrls.push(c.toDataURL('image/png'))
+    }
+
+    // Use the omggif library to encode a GIF entirely in browser
+    // Since we don't have gif.js, we'll do a simple animated WebP/APNG workaround:
+    // We'll use the Canvas ImageData frames approach with a simple GIF encoder
+    // For a simpler approach without dependencies: create an animated GIF using a pure-JS encoder
+    
+    // Simple pure-JS GIF encoder 
+    const gif = await encodeGIF(frameDataUrls, W, H, DELAY)
+    const blob = new Blob([gif], { type: 'image/gif' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `snapify_timelapse_${Date.now()}.gif`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 3000)
+    
+  } catch (e) {
+    console.error('Timelapse error:', e)
+    alert('Could not generate GIF. Try again.')
+  } finally {
+    gifGenerating.value = false
+  }
+}
+
+/**
+ * Minimal GIF89a encoder — produces a properly animated GIF from an array of canvas DataURLs.
+ * Implements NeuQuant quantization + LZW compression in pure JS.
+ */
+const encodeGIF = async (dataUrls, width, height, delay) => {
+  // Load pixel data for each frame
+  const frames = []
+  for (const url of dataUrls) {
+    const c = document.createElement('canvas')
+    c.width = width
+    c.height = height
+    const ctx = c.getContext('2d')
+    const img = await new Promise(r => {
+      const i = new Image()
+      i.onload = () => r(i)
+      i.src = url
+    })
+    ctx.drawImage(img, 0, 0)
+    frames.push(ctx.getImageData(0, 0, width, height).data)
+  }
+  
+  // Simple 256-color palette using first frame (approximation)
+  // Build a GIF with fixed 6-bit palette per frame
+  const bytes = []
+  
+  // GIF Header
+  bytes.push(...Array.from('GIF89a').map(c => c.charCodeAt(0)))
+  // Logical Screen Descriptor
+  bytes.push(width & 0xFF, width >> 8)
+  bytes.push(height & 0xFF, height >> 8)
+  bytes.push(0xF7, 0, 0) // Global Color Table flag, color res, bg index
+  
+  // Build a rough 256-color global palette: 6-bit RGB quantization
+  const palette = buildPalette(frames[0], 256)
+  for (const [r, g, b] of palette) {
+    bytes.push(r, g, b)
+  }
+  
+  // Netscape Application Block (for looping)
+  bytes.push(0x21, 0xFF, 0x0B) // Extension, App, size=11
+  bytes.push(...Array.from('NETSCAPE2.0').map(c => c.charCodeAt(0)))
+  bytes.push(0x03, 0x01, 0xFF, 0xFF, 0x00) // loop count = 0 (infinite)
+  
+  // Each frame
+  for (const frameData of frames) {
+    // Graphic Control Extension (delay, transparency)
+    bytes.push(0x21, 0xF9, 0x04, 0x00) // GCE, size=4, disposal=none, no transparency
+    bytes.push(delay & 0xFF, delay >> 8) // delay in 1/100s
+    bytes.push(0xFF, 0x00) // transparent color index (unused), block terminator
+    
+    // Image Descriptor
+    bytes.push(0x2C)
+    bytes.push(0, 0, 0, 0) // left, top
+    bytes.push(width & 0xFF, width >> 8)
+    bytes.push(height & 0xFF, height >> 8)
+    bytes.push(0x00) // no local color table
+    
+    // Image Data (LZW compressed index stream)
+    const indices = quantizeFrame(frameData, palette)
+    const compressed = lzwEncode(indices, 8)
+    bytes.push(8) // LZW min code size
+    // Write compressed data in blocks of max 255 bytes
+    for (let i = 0; i < compressed.length; i += 255) {
+      const chunk = compressed.slice(i, i + 255)
+      bytes.push(chunk.length, ...chunk)
+    }
+    bytes.push(0x00) // Block terminator
+  }
+  
+  bytes.push(0x3B) // GIF trailer
+  return new Uint8Array(bytes)
+}
+
+const buildPalette = (pixelData, numColors) => {
+  // Median cut palette (simplified - just pick uniformly distributed colors)
+  const palette = []
+  const step = Math.floor(pixelData.length / 4 / numColors)
+  for (let i = 0; i < numColors; i++) {
+    const idx = i * step * 4
+    palette.push([pixelData[idx] || 0, pixelData[idx + 1] || 0, pixelData[idx + 2] || 0])
+  }
+  // Pad to 256 
+  while (palette.length < 256) palette.push([0, 0, 0])
+  return palette
+}
+
+const quantizeFrame = (pixelData, palette) => {
+  const indices = new Uint8Array(pixelData.length / 4)
+  for (let i = 0; i < indices.length; i++) {
+    const r = pixelData[i * 4]
+    const g = pixelData[i * 4 + 1]
+    const b = pixelData[i * 4 + 2]
+    let bestDist = Infinity, bestIdx = 0
+    for (let p = 0; p < palette.length; p++) {
+      const dr = r - palette[p][0], dg = g - palette[p][1], db = b - palette[p][2]
+      const dist = dr * dr + dg * dg + db * db
+      if (dist < bestDist) { bestDist = dist; bestIdx = p }
+    }
+    indices[i] = bestIdx
+  }
+  return indices
+}
+
+const lzwEncode = (indices, minCodeSize) => {
+  const clearCode = 1 << minCodeSize
+  const eofCode = clearCode + 1
+  let codeSize = minCodeSize + 1
+  let dict = new Map()
+  
+  const initDict = () => {
+    dict = new Map()
+    for (let i = 0; i < clearCode + 2; i++) dict.set(String(i), i)
+  }
+  
+  initDict()
+  const output = []
+  let buf = 0, bufLen = 0
+  
+  const writeBits = (code) => {
+    buf |= code << bufLen
+    bufLen += codeSize
+    while (bufLen >= 8) {
+      output.push(buf & 0xFF)
+      buf >>= 8
+      bufLen -= 8
+    }
+  }
+  
+  writeBits(clearCode)
+  let prefix = String(indices[0])
+  
+  for (let i = 1; i < indices.length; i++) {
+    const c = String(indices[i])
+    const pc = prefix + ',' + c
+    if (dict.has(pc)) {
+      prefix = pc
+    } else {
+      writeBits(dict.get(prefix))
+      dict.set(pc, dict.size)
+      if (dict.size >= (1 << codeSize) && codeSize < 12) codeSize++
+      if (dict.size >= (1 << 12)) {
+        writeBits(clearCode)
+        initDict()
+        codeSize = minCodeSize + 1
+      }
+      prefix = c
+    }
+  }
+  
+  writeBits(dict.get(prefix))
+  writeBits(eofCode)
+  if (bufLen > 0) output.push(buf & 0xFF)
+  
+  return output
+}
+
 
 const shareFb = () => {
   playClick()
@@ -1851,17 +2821,130 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+
+.interactive-strip-card.anniversary-card {
+  width: 220px;
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.strip-card.anniversary-card {
+  width: 180px;
+  padding: 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.modal-strip.anniversary-card {
+  width: 320px;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.review-strip.anniversary-card {
+  width: 240px;
+  padding: 0;
+}
+
+/* Base photos area for anniversary - we need aspect ratio to force height */
+.photos-area.anniversary-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  padding: 14px;
+  padding-bottom: 0px; 
+  aspect-ratio: 1 / 1.1; 
+  width: 100%;
+}
+.photos-area.anniversary-layout .strip-photo-wrap:nth-child(1) {
+  grid-row: span 2;
+  border-radius: 6px;
+}
+.photos-area.anniversary-layout .strip-photo-wrap {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.photos-area.anniversary-layout .strip-photo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.anniversary-footer {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.25rem;
+  color: #1a458b;
+  text-align: center;
+  padding: 10px 14px 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.anniversary-footer-lg {
+  font-size: 1.8rem;
+  padding: 16px 20px 24px;
+}
+
+/* Background gradients for the cards */
+.strip-bg-anniversary {
+  background: linear-gradient(180deg, #e8f4fc 0%, #d0e6f7 100%);
+  position: relative;
+}
+.strip-bg-anniversary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 15% 10%, rgba(255,255,255,0.6) 0%, transparent 20%),
+                    radial-gradient(circle at 85% 90%, rgba(255,255,255,0.6) 0%, transparent 25%);
+  pointer-events: none;
+}
+
+.custom-text-input {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.custom-text-input label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #555;
+}
+.custom-text-input input {
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.custom-text-input input:focus {
+  border-color: #1a458b;
+}
+
+/* Watermark adjustments */
+.fr-anniversary {
+  border: 4px solid #a5c8e4 !important;
+  box-shadow: inset 0 0 0 1.5px #fff !important;
+}
+
 /* ════════════════════════════════════════
    ROOT LAYOUT — mobile stack, desktop 2-col
 ════════════════════════════════════════ */
 .booth-root {
   min-height: 100dvh;
-  background: #fff0f3;
+  background: #f8f5f2;
   display: flex;
   flex-direction: column;
   gap: 18px;
   padding: 16px 14px 88px;
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
 }
@@ -1870,8 +2953,8 @@ onBeforeUnmount(() => {
   .booth-root {
     flex-direction: row;
     align-items: flex-start;
-    padding: 28px 32px 44px;
-    gap: 24px;
+    padding: 28px 36px 44px;
+    gap: 28px;
   }
 }
 
@@ -1890,14 +2973,18 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 @media (min-width: 768px) {
+  .col-camera {
+    flex: 0 0 58%;
+  }
   .col-styles {
-    width: 340px;
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
   }
 }
 @media (min-width: 1024px) {
-  .col-styles {
-    width: 380px;
+  .col-camera {
+    flex: 0 0 62%;
   }
 }
 
@@ -1908,7 +2995,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(255, 77, 125, 0.16);
+  border: 1px dashed rgba(217, 56, 94, 0.3);
   border-radius: 14px;
   padding: 9px 14px;
   backdrop-filter: blur(10px);
@@ -1931,19 +3018,19 @@ onBeforeUnmount(() => {
   height: 22px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 2px solid #ff4d7d;
+  border: 2px solid #d9385e;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.62rem;
   font-weight: 800;
-  color: #d81b60;
+  color: #2a2022;
   background: #fff;
   transition: all 0.3s;
   font-family: 'Inter', sans-serif;
 }
 .step-item.active .step-bubble {
-  background: #ff4d7d;
+  background: #d9385e;
   color: #fff;
 }
 .step-item.done .step-bubble {
@@ -1954,14 +3041,14 @@ onBeforeUnmount(() => {
 .step-lbl {
   font-size: 0.6rem;
   font-weight: 700;
-  color: #d81b60;
+  color: #2a2022;
   white-space: nowrap;
   font-family: 'Inter', sans-serif;
 }
 .step-line {
   flex: 1;
   height: 1.5px;
-  background: rgba(255, 77, 125, 0.28);
+  background: rgba(217, 56, 94, 0.28);
   min-width: 10px;
 }
 
@@ -1978,12 +3065,12 @@ onBeforeUnmount(() => {
   position: relative;
   width: 100%;
   aspect-ratio: 4/3;
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
   background: #0e0a06;
   box-shadow:
-    0 8px 30px rgba(139, 69, 19, 0.22),
-    0 2px 8px rgba(0, 0, 0, 0.14);
+    0 12px 48px rgba(139, 69, 19, 0.28),
+    0 4px 16px rgba(0, 0, 0, 0.18);
   contain: layout style;
 }
 /* Frame borders on viewfinder */
@@ -2015,9 +3102,28 @@ onBeforeUnmount(() => {
   border-radius: 6px;
 }
 .fr-cwsi {
-  border: 5px solid #1b6fb5;
+  border: 4px solid #2d7cc1;
   border-radius: 8px;
-  box-shadow: inset 0 0 0 2px #63b3e8;
+  box-shadow: inset 0 0 0 1.5px #63b3e8;
+}
+.fr-collage {
+  border: 4px solid #ffffff;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.3);
+}
+.fr-cwsi_anniversary,
+.fr-anniversary_wide,
+.fr-memories,
+.fr-film_love {
+  border: 4px solid #d7d1cb;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
+}
+.fr-cwsi_anniversary,
+.fr-anniversary_wide {
+  border: 4px solid #1a458b;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1.5px #b3d1ff;
 }
 
 .vf-video {
@@ -2072,7 +3178,7 @@ onBeforeUnmount(() => {
   color: #e8a020;
 }
 .fc:not(.op-icon) {
-  color: #e888aa;
+  color: #ffb7c5;
 }
 
 /* Sprockets */
@@ -2120,7 +3226,7 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 .ct-num {
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   font-size: 4.5rem;
   color: #fff;
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
@@ -2184,7 +3290,7 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 .review-title {
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   font-size: 1.4rem;
   color: #8b4513;
   margin-bottom: 5px;
@@ -2287,12 +3393,12 @@ onBeforeUnmount(() => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid #ff4d7d;
+  border: 2px solid #d9385e;
   background: transparent;
   transition: all 0.3s;
 }
 .prog-dot.filled {
-  background: #ff4d7d;
+  background: #d9385e;
   transform: scale(1.3);
 }
 .prog-dot.pulsing {
@@ -2315,8 +3421,8 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 77, 125, 0.14);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px dashed rgba(217, 56, 94, 0.2);
   border-radius: 14px;
   padding: 12px 14px;
   backdrop-filter: blur(8px);
@@ -2331,7 +3437,7 @@ onBeforeUnmount(() => {
 .chip-label {
   font-size: 0.62rem;
   font-weight: 700;
-  color: #ff8da1;
+  color: #d9385e;
   text-transform: uppercase;
   letter-spacing: 0.9px;
   display: flex;
@@ -2347,23 +3453,23 @@ onBeforeUnmount(() => {
 .chip {
   padding: 5px 12px;
   border-radius: 99px;
-  border: 1.5px solid rgba(255, 77, 125, 0.26);
+  border: 1.5px solid rgba(217, 56, 94, 0.26);
   background: rgba(255, 255, 255, 0.75);
   font-size: 0.75rem;
   font-weight: 600;
-  color: #ff4d7d;
+  color: #d9385e;
   cursor: pointer;
   transition: all 0.12s;
   font-family: 'Inter', sans-serif;
 }
 .chip:hover {
-  background: rgba(255, 77, 125, 0.12);
+  background: rgba(217, 56, 94, 0.12);
 }
 .chip.active {
-  background: linear-gradient(135deg, #ff69b4, #e91e63);
+  background: #d9385e;
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 2px 8px rgba(233, 30, 99, 0.28);
+  box-shadow: 0 2px 8px rgba(217, 56, 94, 0.28);
 }
 
 /* ════════════════════════════════════════
@@ -2431,22 +3537,22 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 4px solid #c2825a;
+  border: 4px solid #d9385e;
   animation: sh-p 2.2s ease-in-out infinite;
 }
 @keyframes sh-p {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(194, 130, 90, 0.45);
+    box-shadow: 0 0 0 0 rgba(217, 56, 94, 0.45);
   }
   50% {
-    box-shadow: 0 0 0 12px rgba(194, 130, 90, 0);
+    box-shadow: 0 0 0 12px rgba(217, 56, 94, 0);
   }
 }
 
 .retake-focus {
-  border: 4px solid #c2825a !important;
-  box-shadow: 0 0 0 6px rgba(194, 130, 90, 0.25);
+  border: 4px solid #d9385e !important;
+  box-shadow: 0 0 0 6px rgba(217, 56, 94, 0.25);
 }
 
 .retake-indicator {
@@ -2455,7 +3561,7 @@ onBeforeUnmount(() => {
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;
-  background: #c2825a;
+  background: #d9385e;
   color: #fff;
   padding: 4px 12px;
   border-radius: 99px;
@@ -2475,7 +3581,7 @@ onBeforeUnmount(() => {
 .review-subtitle {
   text-align: center;
   font-size: 0.85rem;
-  color: #a07060;
+  color: #8c7a7e;
   font-style: italic;
   margin: -5px 0 15px;
 }
@@ -2520,7 +3626,7 @@ onBeforeUnmount(() => {
 .review-item-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(139, 69, 19, 0.55);
+  background: rgba(217, 56, 94, 0.55);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2545,29 +3651,29 @@ onBeforeUnmount(() => {
   padding: 16px !important;
   font-size: 0.9rem !important;
   margin-top: 10px;
-  background: linear-gradient(135deg, #5a9e52 0%, #3d7a36 100%) !important;
-  box-shadow: 0 6px 20px rgba(90, 158, 82, 0.3) !important;
+  background: #d9385e !important;
+  box-shadow: 0 6px 20px rgba(217, 56, 94, 0.3) !important;
 }
 .wide-btn:hover {
   transform: translateY(-3px) !important;
-  box-shadow: 0 10px 25px rgba(90, 158, 82, 0.45) !important;
+  box-shadow: 0 10px 25px rgba(217, 56, 94, 0.45) !important;
 }
 .sh-body {
   position: absolute;
   inset: 8px;
   border-radius: 50%;
-  background: linear-gradient(145deg, #c2825a, #8b4513);
+  background: #d9385e;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   box-shadow:
-    0 4px 18px rgba(139, 69, 19, 0.38),
+    0 4px 18px rgba(217, 56, 94, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: background 0.15s;
 }
 .shutter-btn:not(:disabled):hover .sh-body {
-  background: linear-gradient(145deg, #d4936b, #9b5523);
+  background: #c92f53;
 }
 .spin-anim {
   animation: spin-a 0.85s linear infinite;
@@ -2589,7 +3695,7 @@ onBeforeUnmount(() => {
 .section-title {
   font-size: 0.62rem;
   font-weight: 700;
-  color: #9a6040;
+  color: #d9385e;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   display: flex;
@@ -2611,24 +3717,24 @@ onBeforeUnmount(() => {
   padding: 6px 13px;
   border-radius: 99px;
   flex-shrink: 0;
-  border: 1.5px solid rgba(194, 130, 90, 0.24);
+  border: 1.5px solid rgba(217, 56, 94, 0.24);
   background: rgba(255, 255, 255, 0.72);
   font-size: 0.77rem;
   font-weight: 500;
-  color: #7a4020;
+  color: #2a2022;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;
   font-family: 'Inter', sans-serif;
 }
 .filter-pill:hover {
-  background: rgba(194, 130, 90, 0.1);
+  background: rgba(217, 56, 94, 0.1);
 }
 .filter-pill.active {
-  background: linear-gradient(135deg, #c2825a, #8b4513);
+  background: #d9385e;
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 2px 10px rgba(139, 69, 19, 0.26);
+  box-shadow: 0 2px 10px rgba(217, 56, 94, 0.26);
 }
 .fw-swatch {
   width: 14px;
@@ -2663,8 +3769,8 @@ onBeforeUnmount(() => {
 }
 .frame-thumb.active .ft-preview {
   box-shadow:
-    0 0 0 2.5px #c2825a,
-    0 4px 12px rgba(139, 69, 19, 0.22);
+    0 0 0 2.5px #d9385e,
+    0 4px 12px rgba(217, 56, 94, 0.22);
 }
 .ft-inner {
   width: 24px;
@@ -2676,11 +3782,11 @@ onBeforeUnmount(() => {
 .ft-name {
   font-size: 0.58rem;
   font-weight: 600;
-  color: #9a6040;
+  color: #8c7a7e;
   font-family: 'Inter', sans-serif;
 }
 .frame-thumb.active .ft-name {
-  color: #6b2e0e;
+  color: #2a2022;
   font-weight: 700;
 }
 
@@ -2736,7 +3842,7 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 .sign-h1 {
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   font-size: 1.55rem;
   font-weight: 900;
   letter-spacing: 1.5px;
@@ -2744,7 +3850,7 @@ onBeforeUnmount(() => {
 }
 .sign-h2,
 .sign-h3 {
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   font-size: 0.78rem;
   letter-spacing: 0.5px;
 }
@@ -2907,8 +4013,52 @@ onBeforeUnmount(() => {
 }
 .strip-bg-cwsi {
   background: #ffffff;
-  /* Black outer cutting border drawn via canvas; CSS border for visual preview */
-  outline: 1px solid #000;
+}
+.strip-bg-cwsi_anniversary {
+  background: #e6f0fa;
+}
+.strip-bg-anniversary_wide {
+  background: #e6f0fa;
+}
+.strip-bg-collage {
+  background: #111111;
+}
+.strip-bg-memories {
+  background: #6c5953;
+}
+.strip-bg-film_love {
+  background: #f7f3eb;
+}
+
+/* Full-template preset strip */
+.interactive-strip-card.template-strip {
+  width: 200px;
+  padding: 0;
+}
+.template-photos-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.template-photo-slot {
+  position: absolute;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+.template-photo-slot.placeholder-photo {
+  background: rgba(0, 0, 0, 0.72);
+}
+.template-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.template-photo-slot .placeholder-content {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* Photo wrapper — per-frame border around each photo */
@@ -2946,8 +4096,8 @@ onBeforeUnmount(() => {
   outline: 2px solid #e8a020;
 }
 .border-cwsi {
-  outline: 2px solid #1b6fb5;
-  border-radius: 4px;
+  outline: 1.5px solid #2d7cc1;
+  border-radius: 2px;
 }
 .strip-photo {
   width: 100%;
@@ -2997,7 +4147,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 4px;
   color: #e8a020;
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   font-size: 0.45rem;
   font-weight: 900;
   letter-spacing: 1px;
@@ -3014,7 +4164,7 @@ onBeforeUnmount(() => {
   color: #e8a020;
   font-size: 0.32rem;
   font-weight: 800;
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   letter-spacing: 0.5px;
   padding: 1px 3px;
   border-radius: 2px;
@@ -3032,7 +4182,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 3px;
   color: #e8a020;
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   font-size: 0.38rem;
   padding: 2px 0;
   border-top: 1px solid #e8a020;
@@ -3044,6 +4194,11 @@ onBeforeUnmount(() => {
   font-size: 0.32rem;
   color: #a07060;
   letter-spacing: 0.3px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 2px 4px;
 }
 .strip-bg-vintage .default-footer {
   color: rgba(255, 255, 255, 0.45);
@@ -3052,98 +4207,32 @@ onBeforeUnmount(() => {
   color: #e8a020;
 }
 
-/* CWSI Strip — header & footer */
-.cwsi-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 4px 2px 2px;
-  border-bottom: 1.5px solid #1b6fb5;
-  margin-bottom: 2px;
-  gap: 1px;
-  background: linear-gradient(180deg, #e8f4fd 0%, #ffffff 100%);
+/* CWSI Strip — banner header & footer */
+.cwsi-banner-header {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 3px 3px 0 0;
 }
-.cwsi-logo {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
+.cwsi-banner-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
 }
-.cwsi-logo-lg {
-  width: 52px;
-  height: 52px;
-  object-fit: contain;
+.cwsi-banner-header-lg {
+  border-radius: 3px 3px 0 0;
 }
-.cwsi-title {
-  font-size: 0.28rem;
-  font-weight: 900;
-  color: #1b3a6e;
-  text-align: center;
-  letter-spacing: 0.3px;
-  line-height: 1.2;
-  font-family: system-ui, sans-serif;
+.cwsi-banner-footer {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0 0 3px 3px;
 }
-.cwsi-title-lg {
-  font-size: 0.6rem;
-  font-weight: 900;
-  color: #1b3a6e;
-  text-align: center;
-  letter-spacing: 0.6px;
-  font-family: system-ui, sans-serif;
+.cwsi-banner-footer-lg {
+  border-radius: 0 0 3px 3px;
 }
-.cwsi-header-lg {
-  padding: 8px 6px 4px;
-  gap: 4px;
-  border-bottom: 2px solid #1b6fb5;
-  margin-bottom: 4px;
-  background: linear-gradient(180deg, #dceefb 0%, #ffffff 100%);
-}
-.cwsi-wave-bar {
-  display: flex;
-  gap: 2px;
-  margin-top: 1px;
-}
-.cwsi-wave-bar span {
-  width: 10px;
-  height: 3px;
-  border-radius: 99px;
-  background: #1b6fb5;
-}
-.cwsi-wave-bar span:nth-child(2) {
-  width: 14px;
-  background: #63b3e8;
-}
-.cwsi-footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  font-size: 0.28rem;
-  font-weight: 700;
-  color: #1b3a6e;
-  font-family: system-ui, sans-serif;
-  padding: 2px 0;
-  border-top: 1.5px solid #1b6fb5;
-  background: linear-gradient(0deg, #e8f4fd 0%, #ffffff 100%);
-}
-.cwsi-footer img {
-  width: 10px;
-  height: 10px;
-  object-fit: contain;
-}
-.cwsi-footer-lg {
-  font-size: 0.58rem;
-  gap: 6px;
-  padding: 4px 0;
-  border-top: 2px solid #1b6fb5;
-}
-.cwsi-footer-lg img {
-  width: 22px;
-  height: 22px;
-}
-/* Cut border on the strip card when CWSI is selected */
+/* Clean shadow for CWSI strip */
 .strip-bg-cwsi {
-  border: 0.5px solid #000000;
-  box-shadow: 0 0 0 0.5px #000, 0 8px 28px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.25);
 }
 
 /* ════════════════════════════════════════
@@ -3182,7 +4271,7 @@ onBeforeUnmount(() => {
   gap: 5px;
 }
 .pu-arrow {
-  color: #c2825a;
+  color: #d9385e;
   animation: pu-b 1.2s ease-in-out infinite;
 }
 @keyframes pu-b {
@@ -3208,11 +4297,11 @@ onBeforeUnmount(() => {
   gap: 5px;
   padding: 9px 13px;
   border-radius: 11px;
-  border: 1.5px solid rgba(194, 130, 90, 0.26);
+  border: 1.5px solid rgba(217, 56, 94, 0.26);
   background: rgba(255, 255, 255, 0.78);
   font-size: 0.74rem;
   font-weight: 600;
-  color: #7a4020;
+  color: #2a2022;
   cursor: pointer;
   transition: all 0.12s;
   font-family: 'Inter', sans-serif;
@@ -3220,20 +4309,20 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 .pu-btn:hover {
-  background: rgba(194, 130, 90, 0.1);
+  background: rgba(217, 56, 94, 0.1);
   transform: translateY(-1px);
 }
 .pu-btn:active {
   transform: scale(0.95);
 }
 .pu-btn.primary {
-  background: linear-gradient(135deg, #c2825a, #8b4513);
+  background: #d9385e;
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 4px 14px rgba(139, 69, 19, 0.28);
+  box-shadow: 0 4px 14px rgba(217, 56, 94, 0.28);
 }
 .pu-btn.primary:hover {
-  background: linear-gradient(135deg, #d4936b, #9b5523);
+  background: #c92f53;
 }
 .pu-btn.danger {
   border-color: rgba(160, 50, 50, 0.26);
@@ -3261,12 +4350,12 @@ onBeforeUnmount(() => {
   padding: 14px 30px;
   border-radius: 99px;
   border: none;
-  background: linear-gradient(135deg, #c2825a 0%, #8b4513 100%);
+  background: #d9385e;
   color: #fff;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   letter-spacing: 0.5px;
   box-shadow:
     0 8px 24px rgba(139, 69, 19, 0.38),
@@ -3358,7 +4447,7 @@ onBeforeUnmount(() => {
 }
 
 .modal-card {
-  background: linear-gradient(155deg, #fff8f0 0%, #fde8d8 100%);
+  background: linear-gradient(155deg, #f8f5f2 0%, #ffffff 100%);
   border-radius: 24px;
   padding: 20px 20px 24px;
   width: 100%;
@@ -3372,7 +4461,7 @@ onBeforeUnmount(() => {
   max-height: 90dvh;
   overflow-y: auto;
   /* Fancy border */
-  border: 1px solid rgba(194, 130, 90, 0.28);
+  border: 1px solid rgba(217, 56, 94, 0.28);
 }
 
 /* Modal header */
@@ -3382,26 +4471,26 @@ onBeforeUnmount(() => {
   justify-content: space-between;
 }
 .modal-title {
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   font-size: 1.5rem;
-  color: #6b2e0e;
+  color: #d9385e;
   letter-spacing: -0.3px;
 }
 .modal-close {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1.5px solid rgba(194, 130, 90, 0.28);
+  border: 1.5px solid rgba(217, 56, 94, 0.28);
   background: rgba(255, 255, 255, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #8b4513;
+  color: #d9385e;
   transition: all 0.12s;
 }
 .modal-close:hover {
-  background: rgba(194, 130, 90, 0.14);
+  background: rgba(217, 56, 94, 0.14);
   transform: scale(1.08);
 }
 
@@ -3452,7 +4541,7 @@ onBeforeUnmount(() => {
   color: #e8a020;
   font-size: 0.42rem;
   font-weight: 800;
-  font-family: 'DM Serif Display', serif;
+  font-family: 'Caveat', serif;
   letter-spacing: 0.5px;
   padding: 2px 5px;
   border-radius: 3px;
@@ -3486,32 +4575,32 @@ onBeforeUnmount(() => {
   gap: 5px;
   padding: 12px 8px;
   border-radius: 14px;
-  border: 1.5px solid rgba(194, 130, 90, 0.24);
+  border: 1.5px solid rgba(217, 56, 94, 0.24);
   background: rgba(255, 255, 255, 0.75);
   font-size: 0.72rem;
   font-weight: 600;
-  color: #7a4020;
+  color: #2a2022;
   cursor: pointer;
   transition: all 0.12s;
   font-family: 'Inter', sans-serif;
-  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.06);
+  box-shadow: 0 2px 8px rgba(217, 56, 94, 0.06);
 }
 .ma-btn:hover {
-  background: rgba(194, 130, 90, 0.1);
+  background: rgba(217, 56, 94, 0.1);
   transform: translateY(-2px);
-  box-shadow: 0 5px 14px rgba(139, 69, 19, 0.14);
+  box-shadow: 0 5px 14px rgba(217, 56, 94, 0.14);
 }
 .ma-btn:active {
   transform: scale(0.94);
 }
 .ma-btn.primary {
-  background: linear-gradient(135deg, #c2825a, #8b4513);
+  background: #d9385e;
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 4px 16px rgba(139, 69, 19, 0.3);
+  box-shadow: 0 4px 16px rgba(217, 56, 94, 0.3);
 }
 .ma-btn.primary:hover {
-  background: linear-gradient(135deg, #d4936b, #9b5523);
+  background: #c92f53;
 }
 .ma-btn.danger {
   border-color: rgba(160, 50, 50, 0.24);
@@ -3541,18 +4630,18 @@ onBeforeUnmount(() => {
   gap: 7px;
   padding: 8px 18px;
   border-radius: 99px;
-  border: 1.5px dashed rgba(194, 130, 90, 0.5);
+  border: 1.5px dashed rgba(217, 56, 94, 0.5);
   background: rgba(255, 255, 255, 0.65);
   font-size: 0.78rem;
   font-weight: 600;
-  color: #8b4513;
+  color: #d9385e;
   cursor: pointer;
   transition: all 0.15s;
   font-family: 'Inter', sans-serif;
 }
 .upload-btn:hover {
-  background: rgba(194, 130, 90, 0.1);
-  border-color: #c2825a;
+  background: rgba(217, 56, 94, 0.1);
+  border-color: #d9385e;
   transform: translateY(-1px);
 }
 .upload-btn:active {
@@ -3566,36 +4655,116 @@ onBeforeUnmount(() => {
 /* ══ INTERACTIVE PREVIEW & STICKERS CSS ══ */
 .interactive-preview-wrapper {
   background: rgba(255, 255, 255, 0.4);
-  padding: 14px;
-  border-radius: 18px;
+  padding: 10px;
+  border-radius: 16px;
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 1px dashed rgba(255, 77, 125, 0.25);
-  margin-bottom: 8px;
+  border: 1px dashed rgba(217, 56, 94, 0.25);
+  margin-bottom: 6px;
   backdrop-filter: blur(8px);
+  min-height: 120px;
+}
+.preview-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.wm-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1.5px solid rgba(217, 56, 94, 0.3);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #d9385e;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.wm-toggle-btn:hover {
+  background: rgba(217, 56, 94, 0.1);
+  transform: scale(1.03);
+}
+.wm-toggle-btn.wm-off {
+  opacity: 0.6;
+  border-style: dashed;
 }
 .interactive-strip-card {
-  width: 180px;
-  padding: 8px 8px 30px;
+  width: 140px;
+  padding: 6px 6px 22px;
   display: flex;
   flex-direction: column;
   gap: 0;
-  box-shadow: 0 10px 30px rgba(255, 77, 125, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   position: relative;
   overflow: hidden;
   user-select: none;
+  transition: width 0.2s ease;
+}
+/* Collage gets a slightly wider card to show the grid better */
+.interactive-strip-card.strip-bg-collage,
+.interactive-strip-card.anniversary-card {
+  width: 180px;
+}
+/* Collage frame: wider strip layout */
+.strip-bg-collage.interactive-strip-card,
+.strip-bg-collage.strip-card {
+  padding: 6px;
+}
+/* Collage grid layouts */
+.photos-area.collage-grid {
+  display: grid;
+  gap: 4px;
+  padding: 0;
+}
+.photos-area.collage-2 {
+  grid-template-columns: 1fr 1fr;
+}
+.photos-area.collage-3 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+}
+.photos-area.collage-3 .strip-photo-wrap:first-child {
+  grid-column: 1 / -1;
+}
+.photos-area.collage-4 {
+  grid-template-columns: 1fr 1fr;
+}
+.photos-area.collage-6 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.strip-bg-collage .strip-photo {
+  aspect-ratio: 4/3;
+  border-radius: 3px;
+  /* NO forced grayscale — respect the user's chosen filter */
+}
+.strip-bg-collage .strip-photo-wrap {
+  border-radius: 3px;
+  overflow: hidden;
+}
+.border-collage {
+  outline: 2px solid rgba(255,255,255,0.5);
+  border-radius: 3px;
 }
 .preview-hint-text {
   font-size: 0.65rem;
-  color: #ff4d7d;
+  color: #d9385e;
   text-align: center;
   margin-top: 4px;
   margin-bottom: 8px;
 }
 .placeholder-photo {
   aspect-ratio: 4/3;
-  background: #fff0f3;
+  background: #f8f5f2;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3605,8 +4774,305 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  color: #ff8da1;
+  color: #d9385e;
   font-size: 0.65rem;
+}
+
+
+/* ═══════════════════════════════════
+   CUSTOM TEMPLATE BUILDER
+═══════════════════════════════════ */
+.custom-tpl-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px;
+  background: rgba(26, 69, 139, 0.04);
+  border-radius: 12px;
+  border: 1px dashed rgba(26, 69, 139, 0.2);
+  margin-top: 10px;
+}
+.ctb-row {
+  display: flex;
+  gap: 10px;
+}
+.ctb-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.ctb-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ctb-input {
+  padding: 8px 10px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.ctb-input:focus { border-color: #1a458b; }
+.ctb-color {
+  width: 100%;
+  height: 36px;
+  padding: 2px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.ctb-layout-row {
+  display: flex;
+  gap: 8px;
+}
+.ctb-layout-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 4px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ctb-layout-btn.active {
+  border-color: #1a458b;
+  background: rgba(26, 69, 139, 0.06);
+}
+.ctb-layout-icon {
+  width: 38px;
+  height: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: stretch;
+}
+.ctb-slot {
+  background: currentColor;
+  border-radius: 2px;
+  opacity: 0.5;
+}
+.ctb-slot-h { flex: 1; }
+.ctb-slot-tall { flex: 1; aspect-ratio: auto; }
+.ctb-slot-sm { flex: 1; }
+.ctb-layout-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #555;
+}
+.ctb-layout-btn.active .ctb-layout-name { color: #1a458b; }
+
+/* Custom Template strip header */
+.custom-tpl-header {
+  padding: 8px 12px 6px;
+  border-bottom: 2px solid;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.3px;
+  text-align: left;
+}
+.ctpl-title {
+  display: block;
+  line-height: 1.2;
+}
+
+/* Custom Template photo area layouts */
+.photos-area.custom-tpl-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px;
+}
+.photos-area.custom-tpl-strip .strip-photo-wrap {
+  border: 1.5px solid;
+  border-color: inherit;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  display: flex;
+}
+.photos-area.custom-tpl-wide {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 5px;
+  padding: 5px;
+}
+.photos-area.custom-tpl-wide .strip-photo-wrap:nth-child(1) {
+  grid-row: span 2;
+  /* Big photo stretches to match height of the 2 smaller ones */
+}
+.photos-area.custom-tpl-wide .strip-photo-wrap:not(:nth-child(1)) {
+  aspect-ratio: 4/3;
+}
+.photos-area.custom-tpl-wide .strip-photo-wrap {
+  border: 1.5px solid;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+.photos-area.custom-tpl-quad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  padding: 5px;
+}
+.photos-area.custom-tpl-quad .strip-photo-wrap {
+  border: 1.5px solid;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  display: flex;
+}
+.photos-area.custom-tpl-strip .strip-photo,
+.photos-area.custom-tpl-wide .strip-photo,
+.photos-area.custom-tpl-quad .strip-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* strip-bg-custom_tpl */
+.strip-bg-custom_tpl {
+  background: #e8f4fc;
+}
+
+/* Wider preview for custom template */
+.ctpl-logo-placeholder {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0.9;
+}
+.interactive-strip-card.strip-bg-custom_tpl {
+  width: 280px;
+  padding: 0;
+}
+
+/* ── Template frame overlay — the PNG sits on top of photos ── */
+.template-frame-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none; /* allow clicks through to stickers */
+}
+
+/* template-photos-layer sits behind the overlay */
+.template-photos-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.template-photo-slot {
+  position: absolute;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.template-photo-slot.placeholder-photo {
+  background: rgba(0, 0, 0, 0.45);
+}
+.template-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.template-photo-slot .placeholder-content {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Dark CSS Preset overlay (cwsi_dark) ── */
+.template-dark-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(160deg, #0a1628 0%, #0d2040 40%, #0a1628 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10% 10%;
+}
+/* The photos layer is z-index:2, so the dark overlay must NOT have background on z-index 5 */
+/* Instead render dark overlay frame decorations around the photo slots */
+.strip-bg-cwsi_dark .template-dark-overlay {
+  background: transparent; /* transparent so photos show through */
+}
+.tdo-header {
+  display: flex;
+  align-items: center;
+  gap: 8%;
+}
+.tdo-logo-ring {
+  width: 18%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(100, 180, 255, 0.7);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64b4ff;
+  font-weight: 900;
+  font-size: 0.6rem;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+.tdo-title {
+  font-size: 0.55rem;
+  color: rgba(180, 210, 255, 0.8);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.tdo-footer {
+  text-align: center;
+}
+.tdo-anniv {
+  color: rgba(180, 220, 255, 0.9);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.tdo-anniv em {
+  font-style: italic;
+  color: #90d0ff;
+}
+
+/* CWSI template wider cards */
+.interactive-strip-card.strip-bg-cwsi_strip,
+.interactive-strip-card.strip-bg-cwsi_wide,
+.interactive-strip-card.strip-bg-cwsi_dark {
+  width: 180px;
+  padding: 0;
+}
+.strip-card.template-strip {
+  width: 120px;
+  padding: 0;
 }
 
 /* Draggable Stickers Overlay */
@@ -3670,7 +5136,7 @@ onBeforeUnmount(() => {
 .sticker-outline {
   position: absolute;
   inset: -6px;
-  border: 1.5px dashed #ff4d7d;
+  border: 1.5px dashed #d9385e;
   border-radius: 4px;
   pointer-events: none;
 }
@@ -3697,11 +5163,11 @@ onBeforeUnmount(() => {
 /* iOS Segmented Control tabs */
 .ios-segmented-control {
   display: flex;
-  background: rgba(255, 77, 125, 0.08);
+  background: rgba(217, 56, 94, 0.08);
   padding: 2.5px;
   border-radius: 10px;
   margin-bottom: 16px;
-  border: 1px solid rgba(255, 77, 125, 0.12);
+  border: 1px solid rgba(217, 56, 94, 0.12);
 }
 .segment-btn {
   flex: 1;
@@ -3715,14 +5181,14 @@ onBeforeUnmount(() => {
   background: transparent;
   font-size: 0.76rem;
   font-weight: 600;
-  color: #ff8da1;
+  color: #d9385e;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .segment-btn.active {
   background: #ffffff;
-  color: #ff4d7d;
-  box-shadow: 0px 3px 8px rgba(255, 77, 125, 0.15), 0px 3px 1px rgba(255, 77, 125, 0.05);
+  color: #2a2022;
+  box-shadow: 0px 3px 8px rgba(217, 56, 94, 0.15), 0px 3px 1px rgba(217, 56, 94, 0.05);
 }
 
 /* Stickers grid catalog selector */
@@ -3737,18 +5203,18 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  border: 1px solid rgba(255, 77, 125, 0.15);
+  border: 1px solid rgba(217, 56, 94, 0.15);
   background: #ffffff;
   border-radius: 12px;
   padding: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 6px rgba(255, 77, 125, 0.04);
+  box-shadow: 0 2px 6px rgba(217, 56, 94, 0.04);
 }
 .sticker-picker-btn:hover {
-  background: #fff5f7;
+  background: #f8f5f2;
   transform: translateY(-1.5px);
-  border-color: #ff4d7d;
+  border-color: #d9385e;
 }
 .sticker-btn-preview {
   width: 36px;
@@ -3768,7 +5234,7 @@ onBeforeUnmount(() => {
 .sticker-picker-label {
   font-size: 0.58rem;
   font-weight: 600;
-  color: #ff8da1;
+  color: #d9385e;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -3776,8 +5242,8 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 .upload-btn-preview {
-  color: #ff4d7d;
-  background: rgba(255, 77, 125, 0.08);
+  color: #d9385e;
+  background: rgba(217, 56, 94, 0.08);
   border-radius: 50%;
   width: 32px;
   height: 32px;
@@ -3789,16 +5255,16 @@ onBeforeUnmount(() => {
 /* Selected Sticker Adjustment Controls panel */
 .selected-sticker-controls {
   background: #ffffff;
-  border: 1px solid rgba(255, 77, 125, 0.15);
+  border: 1px solid rgba(217, 56, 94, 0.15);
   border-radius: 16px;
   padding: 14px;
   margin-top: 16px;
-  box-shadow: 0 4px 16px rgba(255, 77, 125, 0.06);
+  box-shadow: 0 4px 16px rgba(217, 56, 94, 0.06);
 }
 .controls-title {
   font-size: 0.78rem;
   font-weight: 700;
-  color: #d81b60;
+  color: #d9385e;
   margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -3813,20 +5279,20 @@ onBeforeUnmount(() => {
 .control-row label {
   font-size: 0.72rem;
   font-weight: 600;
-  color: #ff8da1;
+  color: #d9385e;
   width: 50px;
 }
 .control-row input[type="range"] {
   flex: 1;
-  accent-color: #ff4d7d;
+  accent-color: #d9385e;
   height: 4px;
-  background: rgba(255, 77, 125, 0.12);
+  background: rgba(217, 56, 94, 0.12);
   border-radius: 2px;
 }
 .control-val {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #ff4d7d;
+  color: #d9385e;
   width: 32px;
   text-align: right;
 }
@@ -3839,17 +5305,17 @@ onBeforeUnmount(() => {
 .control-action-btn {
   padding: 8px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 77, 125, 0.15);
+  border: 1px solid rgba(217, 56, 94, 0.15);
   background: #ffffff;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #ff4d7d;
+  color: #d9385e;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .control-action-btn:hover {
-  background: #fff5f7;
-  border-color: #ff4d7d;
+  background: #f8f5f2;
+  border-color: #d9385e;
 }
 .control-action-btn.danger {
   grid-column: span 2;

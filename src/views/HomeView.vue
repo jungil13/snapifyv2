@@ -31,11 +31,11 @@
       <!-- Brand -->
       <div class="brand-block">
         <div class="brand-badge">
-          <CameraIcon :size="12" />
-          Free &amp; Cozy
+          <CameraIcon :size="14" />
+          No app required
         </div>
         <h1 class="brand-title">Snapify</h1>
-        <p class="brand-sub">Your vintage photobooth, from home</p>
+        <p class="brand-sub">Step inside the internet's cutest photobooth. Snap pics, apply vintage film filters, and print gorgeous photo strips instantly.</p>
       </div>
 
       <!-- Polaroid stack -->
@@ -83,15 +83,12 @@
 
       <!-- Footer -->
       <div class="home-footer">
-        <div class="film-deco">
-          <span v-for="n in 6" :key="n" class="film-hole"></span>
-        </div>
         <p class="footer-txt">
           made with
-          <HeartIcon :size="11" class="heart-icon" />
-          by <span class="creator">𝓙𝓾𝓷 𝓖𝓲𝓵</span>
+          <HeartIcon :size="12" class="heart-icon" fill="currentColor" />
+          by <span class="creator">Snapify</span>
         </p>
-        <p class="footer-copy">© 2025 Snapify · All rights reserved</p>
+        <p class="footer-copy">© 2025 Snapify · 100% Free</p>
       </div>
     </div>
   </div>
@@ -245,7 +242,7 @@ onMounted(() => {
   padding: 24px 20px 80px;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(155deg, #fff8f0 0%, #fde8d8 45%, #f9dccf 100%);
+  background: #f8f5f2;
 }
 
 /* blobs */
@@ -259,7 +256,7 @@ onMounted(() => {
 .blob-1 {
   width: 320px;
   height: 320px;
-  background: #f7c5ae;
+  background: #ffd1dc;
   top: -80px;
   left: -80px;
   animation: blobf 9s ease-in-out infinite alternate;
@@ -267,7 +264,7 @@ onMounted(() => {
 .blob-2 {
   width: 240px;
   height: 240px;
-  background: #fad4b4;
+  background: #ffb7c5;
   bottom: 80px;
   right: -40px;
   animation: blobf 11s ease-in-out infinite alternate-reverse;
@@ -384,8 +381,14 @@ onMounted(() => {
   align-items: center;
   gap: 26px;
   width: 100%;
-  max-width: 400px;
+  max-width: 520px;
   text-align: center;
+  background: rgba(248, 245, 242, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 3rem 2rem;
+  border-radius: 40px;
+  border: 2px dashed rgba(217, 56, 94, 0.2);
 }
 
 /* brand */
@@ -398,31 +401,31 @@ onMounted(() => {
 .brand-badge {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #c2825a;
-  background: rgba(194, 130, 90, 0.1);
-  border: 1px solid rgba(194, 130, 90, 0.28);
+  gap: 6px;
+  font-family: 'Caveat', cursive;
+  font-size: 1.5rem;
+  color: #d9385e;
+  background: transparent;
+  border: 1px dashed rgba(217, 56, 94, 0.5);
   border-radius: 99px;
-  padding: 4px 13px;
-  font-family: 'Inter', sans-serif;
+  padding: 4px 18px;
+  transform: rotate(-5deg);
+  margin-bottom: -15px;
 }
 .brand-title {
   font-family: 'DM Serif Display', serif;
   font-size: clamp(3rem, 13vw, 4.2rem);
-  color: #6b2e0e;
-  line-height: 1;
+  color: #2a2022;
+  line-height: 1.1;
   letter-spacing: -1px;
-  text-shadow: 0 2px 10px rgba(107, 46, 14, 0.12);
 }
 .brand-sub {
-  font-size: 0.92rem;
-  color: #9a6040;
+  font-size: 1.05rem;
+  color: #8c7a7e;
   font-family: 'Inter', sans-serif;
   font-weight: 400;
+  line-height: 1.5;
+  max-width: 440px;
 }
 
 /* polaroids */
@@ -457,8 +460,8 @@ onMounted(() => {
   text-align: center;
   font-family: 'Playfair Display', serif;
   font-style: italic;
-  font-size: 0.7rem;
-  color: #8b6050;
+  font-size: 0.8rem;
+  color: #2a2022;
 }
 .p1 {
   transform: rotate(-2.5deg) translate(10px, 10px);
@@ -471,7 +474,7 @@ onMounted(() => {
 .p3 {
   transform: rotate(-7deg) translate(-18px, -4px);
   z-index: 1;
-  filter: brightness(0.92);
+  filter: brightness(0.95);
 }
 .polaroid-stack:hover .p1 {
   transform: rotate(-2deg) translate(10px, -12px) scale(1.03);
@@ -494,15 +497,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 5px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(194, 130, 90, 0.24);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(217, 56, 94, 0.18);
   border-radius: 99px;
   padding: 6px 14px;
   font-size: 0.75rem;
-  font-weight: 500;
-  color: #8b4513;
+  font-weight: 600;
+  color: #8c7a7e;
   backdrop-filter: blur(8px);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.08);
   font-family: 'Inter', sans-serif;
 }
 
@@ -510,18 +513,17 @@ onMounted(() => {
 .cta-btn {
   border: none;
   cursor: pointer;
-  background: linear-gradient(135deg, #c2825a 0%, #8b4513 100%);
+  background: #d9385e;
   color: #fff;
-  font-size: 1rem;
-  font-weight: 600;
-  padding: 15px 38px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 16px 42px;
   border-radius: 99px;
   box-shadow:
-    0 6px 22px rgba(139, 69, 19, 0.32),
-    0 2px 6px rgba(0, 0, 0, 0.1);
+    0 8px 30px rgba(217, 56, 94, 0.45);
   transition:
-    transform 0.12s,
-    box-shadow 0.12s;
+    transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    box-shadow 0.2s;
   position: relative;
   overflow: hidden;
   font-family: 'Inter', sans-serif;
@@ -533,7 +535,7 @@ onMounted(() => {
   left: -75%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
   transform: skewX(-20deg);
   animation: shimmer 2.5s infinite;
 }
@@ -546,8 +548,8 @@ onMounted(() => {
   }
 }
 .cta-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(139, 69, 19, 0.38);
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 14px 40px rgba(217, 56, 94, 0.6);
 }
 .cta-btn:active {
   transform: scale(0.97);
@@ -570,8 +572,8 @@ onMounted(() => {
   }
 }
 .cta-note {
-  font-size: 0.7rem;
-  color: #b07060;
+  font-size: 0.8rem;
+  color: #8c7a7e;
   font-family: 'Inter', sans-serif;
   margin-top: -10px;
 }
@@ -582,37 +584,29 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 7px;
-}
-.film-deco {
-  display: flex;
-  gap: 8px;
-}
-.film-hole {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(194, 130, 90, 0.35);
-  border-radius: 2px;
+  margin-top: 10px;
 }
 .footer-txt {
-  font-size: 0.78rem;
-  color: #a07060;
+  font-size: 0.85rem;
+  color: #8c7a7e;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-family: 'Inter', sans-serif;
 }
 .heart-icon {
-  color: #c2825a;
+  color: #d9385e;
 }
 .creator {
-  background: rgba(194, 130, 90, 0.12);
+  background: rgba(217, 56, 94, 0.1);
   border-radius: 99px;
-  padding: 1px 10px;
-  color: #8b4513;
+  padding: 2px 12px;
+  color: #d9385e;
+  font-weight: 600;
 }
 .footer-copy {
-  font-size: 0.68rem;
-  color: #b8927a;
+  font-size: 0.75rem;
+  color: #a8989c;
   font-family: 'Inter', sans-serif;
 }
 </style>

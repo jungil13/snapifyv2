@@ -44,12 +44,12 @@ onMounted(() => {
   padding: 0;
 }
 body, button, a, input, select, textarea, [role="button"] {
-  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23ff69b4' stroke='white' stroke-width='2.5'><path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/></svg>") 12 12, auto !important;
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d9385e' stroke-width='2.5'><circle cx='12' cy='12' r='4' fill='%23d9385e'/></svg>") 12 12, auto !important;
 }
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: #fff0f3;
-  color: #1c1c1e;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: #f8f5f2;
+  color: #2a2022;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -67,7 +67,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: linear-gradient(155deg, #fff0f3 0%, #ffe3e8 55%, #ffd1dc 100%);
+  background: linear-gradient(155deg, #f8f5f2 0%, #fff 55%, #ffe4e9 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -82,7 +82,7 @@ body {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 77, 125, 0.2);
+  border: 3px solid rgba(217, 56, 94, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,7 +95,7 @@ body {
   inset: -3px;
   border-radius: 50%;
   border: 3px solid transparent;
-  border-top-color: #ff4d7d;
+  border-top-color: #d9385e;
   animation: ring-spin 1.2s ease-in-out infinite;
 }
 @keyframes ring-spin {
@@ -107,20 +107,21 @@ body {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: rgba(255, 77, 125, 0.1);
+  background: rgba(217, 56, 94, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .loader-brand {
-  font-family: 'DM Serif Display', system-ui, serif;
-  font-size: 2.2rem;
-  color: #d81b60;
-  letter-spacing: 2px;
+  font-family: 'Caveat', cursive, system-ui;
+  font-size: 2.8rem;
+  color: #d9385e;
+  letter-spacing: 1px;
 }
 .loader-sub {
-  font-size: 0.78rem;
-  color: #ff4d7d;
+  font-size: 0.85rem;
+  color: #8c7a7e;
+  font-family: 'Inter', sans-serif;
 }
 .loader-dots {
   display: flex;
@@ -129,7 +130,7 @@ body {
 .loader-dots span {
   width: 7px;
   height: 7px;
-  background: #ff4d7d;
+  background: #d9385e;
   border-radius: 50%;
   animation: dot-b 1.2s ease-in-out infinite;
 }
